@@ -55,15 +55,57 @@ def cleanup(intent):
     directory = intent.parent.resolve()
     if directory.parent != (ROOT / ".private").resolve() or directory.name != "native-" + record["runId"] or intent.parent.is_symlink():
         raise ValueError("native_cleanup_directory_invalid")
-    result = command(["inspect", record["name"]], required=False)
-    if result.returncode == 0:
-        container = json.loads(result.stdout)[0]
-        if container["Config"]["Labels"].get("amz.owner") != OWNER or container["Config"]["Labels"].get("amz.run") != record["runId"]:
+    if not isinstance(record.get("attempts"), list) or not isinstance(record.get("removals"), list):
+        raise ValueError("native_cleanup_dispatch_unresolved")
+    # A successful exact-name inventory is the absence proof. Never infer it
+    # from Docker's localized/case-sensitive error text or an API failure.
+    listed = command(["ps", "--all", "--no-trunc", "--filter", "name=^/" + re.escape(record["name"]) + "$", "--format", "{{.Names}}"])
+    if listed.stdout.strip():
+        container = json.loads(command(["inspect", record["name"]]).stdout)[0]
+        if container["Config"]["Labels"].get("amz.owner") != OWNER or container["Config"]["Labels"].get("amz.run") != record["runId"] or container["Image"] != record["image"]:
             raise ValueError("foreign_native_container_protected")
-        command(["rm", "-f", record["name"]])
-    elif b"No such object" not in result.stderr:
+        identifier = container["Id"]
+        if not record["attempts"]:
+            raise ValueError("native_cleanup_dispatch_unresolved")
+        current = record["attempts"][-1]
+        if current.get("containerId") not in (None, identifier):
+            raise ValueError("native_cleanup_identity_changed")
+        current["containerId"] = identifier
+        removal_ack(record, identifier, command(["rm", "-f", identifier]))
+        intent.write_text(json.dumps(record))
+    names = command(["ps", "--all", "--no-trunc", "--filter", "name=^/" + re.escape(record["name"]) + "$", "--format", "{{.Names}}"])
+    if names.stdout.strip():
         raise ValueError("native_cleanup_reconciliation_unavailable")
+    for attempt in record["attempts"]:
+        identifier = attempt.get("containerId")
+        if not isinstance(identifier, str) or not re.fullmatch(r"[a-f0-9]{64}", identifier) or attempt.get("state") != "removed" or not any(row.get("containerId") == identifier and row.get("ack") == "docker-rm-exit-0" for row in record["removals"]):
+            raise ValueError("native_cleanup_dispatch_unresolved")
+        if command(["ps", "--all", "--no-trunc", "--filter", "id=" + identifier, "--format", "{{.ID}}"]).stdout.strip():
+            raise ValueError("native_cleanup_reconciliation_unavailable")
     shutil.rmtree(directory)
+    return {"ownedContainerAbsent": True, "createdContainerIds": [attempt["containerId"] for attempt in record["attempts"]], "terminalRemovalAcknowledgments": len(record["removals"]), "privateFixtureRemoved": not directory.exists()}
+
+
+def removal_ack(record, identifier, result):
+    if result.returncode != 0 or result.stdout.decode().strip() != identifier:
+        raise ValueError("native_removal_acknowledgement_invalid")
+    for attempt in record["attempts"]:
+        if attempt.get("containerId") == identifier:
+            attempt["state"] = "removed"
+    record["removals"].append({"containerId": identifier, "ack": "docker-rm-exit-0"})
+
+
+def publish_passed_receipt(commit, receipt, cleanup_receipt, private_directory):
+    ids = cleanup_receipt.get("createdContainerIds", [])
+    if private_directory.exists() or private_directory.is_symlink() or cleanup_receipt.get("ownedContainerAbsent") is not True or cleanup_receipt.get("privateFixtureRemoved") is not True or cleanup_receipt.get("terminalRemovalAcknowledgments") != 3 or len(ids) != 3 or len(set(ids)) != 3 or not all(isinstance(identifier, str) and re.fullmatch(r"[a-f0-9]{64}", identifier) for identifier in ids):
+        raise ValueError("native_cleanup_incomplete")
+    if receipt.get("passed") is not True or receipt.get("sourceCommit") != commit:
+        raise ValueError("native_acceptance_incomplete")
+    receipt["cleanup"] = cleanup_receipt
+    output = ROOT / ".build" / ("native-acceptance-" + commit + ".json")
+    with output.open("x") as file:
+        file.write(json.dumps(receipt, indent=2) + "\n")
+    return output
 
 
 def accept(image, artifact_file):
@@ -85,7 +127,8 @@ def accept(image, artifact_file):
     storage = private / "storage"
     storage.mkdir()
     intent = private / "intent.json"
-    intent.write_text(json.dumps({"owner": OWNER, "runId": run_id, "name": name, "image": image, "sourceCommit": commit}))
+    intent_record = {"owner": OWNER, "runId": run_id, "name": name, "image": image, "sourceCommit": commit, "attempts": [], "removals": []}
+    intent.write_text(json.dumps(intent_record))
     password = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip("=")
     config = {"schema": 1, "attemptId": str(uuid.uuid4()), "seedRevision": 1, "credentialEpoch": 1, "runtimeLaunchId": str(uuid.uuid4()),
         "password": password, "port": 38281, "engineCommit": build.ENGINE_COMMIT, "worldPackSha256": build.WORLD_PACK_SHA256,
@@ -93,6 +136,7 @@ def accept(image, artifact_file):
     config_file = storage / "current.json"
     config_file.write_text(json.dumps(config))
     observed = []
+    receipt = None
 
     def status(predicate):
         for _ in range(100):
@@ -110,23 +154,36 @@ def accept(image, artifact_file):
 
     def start():
         config_file.write_text(json.dumps(config))
-        command(["create", "--name", name, "--label", "amz.owner=" + OWNER, "--label", "amz.run=" + run_id,
+        attempt = {"runtimeLaunchId": config["runtimeLaunchId"], "containerId": None, "state": "creating"}
+        intent_record["attempts"].append(attempt)
+        intent.write_text(json.dumps(intent_record))
+        created = command(["create", "--name", name, "--label", "amz.owner=" + OWNER, "--label", "amz.run=" + run_id,
             "--read-only", "--network", "none", "--user", "65532:65532", "--cap-drop", "ALL", "--security-opt", "no-new-privileges=true",
             "--pids-limit", "128", "--cpus", "1", "--memory", "512m", "--memory-swap", "512m", "--stop-timeout", "15",
             "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=32m,uid=65532,gid=65532",
             "--mount", f"type=bind,src={storage.resolve()},dst=/home/container/.amz",
             "--mount", f"type=bind,src={(ROOT / 'tests').resolve()},dst=/qa,readonly",
             "--entrypoint", "/usr/local/bin/python", image, "-I", "-B", "/qa/runtime-fixture.py"])
+        identifier = created.stdout.decode().strip()
+        if not re.fullmatch(r"[a-f0-9]{64}", identifier): raise ValueError("native_create_identity_invalid")
+        attempt["containerId"] = identifier; attempt["state"] = "created"
+        intent.write_text(json.dumps(intent_record))
         command(["start", name])
 
     def stop():
-        command(["stop", "--time", "15", name])
-        logs = command(["logs", name]).stdout + command(["logs", name]).stderr
+        container = json.loads(command(["inspect", name]).stdout)[0]
+        identifier = intent_record["attempts"][-1]["containerId"]
+        if container["Id"] != identifier or container["Image"] != image or container["Config"]["Labels"].get("amz.owner") != OWNER or container["Config"]["Labels"].get("amz.run") != run_id:
+            raise ValueError("foreign_native_container_protected")
+        command(["stop", "--time", "15", identifier])
+        output = command(["logs", identifier])
+        logs = output.stdout + output.stderr
         for secret in (password, config["password"]):
             if secret.encode() in logs:
                 raise AssertionError("native_secret_log_leak")
         observed.append({"logsRedacted": True})
-        command(["rm", name])
+        removal_ack(intent_record, identifier, command(["rm", identifier]))
+        intent.write_text(json.dumps(intent_record))
 
     def client(mode, expected):
         (storage / "probe-mode").write_text(mode)
@@ -196,9 +253,6 @@ def accept(image, artifact_file):
             "tamperedCheckpointRejected": True,
             "network": "none", "hostPorts": [], "memoryLimitMiB": 512, "cpus": 1, "observations": observed,
             "qualification": "synthetic standard AP protocol and native checkpoint only; no game/browser/DMS qualification", "passed": True}
-        output = ROOT / ".build" / ("native-acceptance-" + commit + ".json")
-        output.write_text(json.dumps(receipt, indent=2) + "\n")
-        print(json.dumps({"passed": True, "receipt": str(output), "sourceCommit": commit, "qualifiedGames": []}))
     except BaseException as error:
         # Preserve only fixed structured diagnostics; never retain credentials,
         # arbitrary tracebacks, the seed/save, or raw native output after failure.
@@ -213,7 +267,18 @@ def accept(image, artifact_file):
         print(json.dumps({"passed": False, "receipt": str(output), "stopped": stopped, "diagnostics": diagnostics, "qualifiedGames": []}))
         raise
     finally:
-        cleanup(intent)
+        try:
+            cleanup_receipt = cleanup(intent)
+        except BaseException as cleanup_error:
+            failure = {"schema": "amz.ap.server-native-source-failure.v1", "sourceCommit": commit, "imageId": image,
+                "runtimeArtifactSha256": hashlib.sha256(artifact_bytes).hexdigest(), "phase": "cleanup", "errorType": type(cleanup_error).__name__,
+                "nativeAssertionsPassed": receipt is not None, "passed": False, "qualifiedGames": []}
+            (ROOT / ".build" / ("native-failure-" + commit + ".json")).write_text(json.dumps(failure, indent=2) + "\n")
+            raise
+    # A pass becomes reviewable only after terminal removal and private-input
+    # cleanup. Finally-block errors can never leave a published pass receipt.
+    output = publish_passed_receipt(commit, receipt, cleanup_receipt, private)
+    print(json.dumps({"passed": True, "receipt": str(output), "sourceCommit": commit, "qualifiedGames": []}))
 
 
 if __name__ == "__main__":
