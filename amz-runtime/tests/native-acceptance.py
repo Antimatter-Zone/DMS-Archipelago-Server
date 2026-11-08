@@ -26,6 +26,26 @@ def command(arguments, timeout=30, required=True):
     return result
 
 
+def bounded_diagnostics(value):
+    raw = value[-262144:]
+    diagnostics = []
+    stopped = None
+    stages = {"configuration", "engine_verification", "native_import", "checkpoint_load", "native_runtime"}
+    types = {"ValueError", "ModuleNotFoundError", "ImportError", "OSError", "PermissionError", "RuntimeError", "TypeError", "KeyError", "AssertionError", "AttributeError"}
+    codes = types | {"private_file_invalid", "private_root_invalid", "runtime_configuration_invalid", "runtime_overlay_changed", "seed_integrity", "manifest_pin_mismatch", "engine_pin_mismatch", "source_path_invalid", "engine_source_changed", "checkpoint_integrity", "explicit_checkpoint_required", "initial_checkpoint_failed", "nonroot_container_required", "headless_world_pack_unsupported", "headless_hint_integrity"}
+    for line in raw.decode(errors="replace").splitlines():
+        match = re.fullmatch(r"AP runtime stopped: ([a-z_]{1,64}):([A-Za-z_][A-Za-z0-9_]{0,63})", line)
+        if match and match[1] in stages and match[2] in codes:
+            stopped = {"stage": match[1], "code": match[2]}
+        try:
+            row = json.loads(line)
+            if row.get("schema") == "amz.ap.runtime-diagnostic.v1" and len(diagnostics) < 16 and row.get("stage") in stages and row.get("exceptionType") in types and isinstance(row.get("module"), str) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]{0,127}", row["module"]) and isinstance(row.get("function"), str) and re.fullmatch(r"(?:[A-Za-z_][A-Za-z0-9_]{0,127}|<module>)", row["function"]) and type(row.get("line")) is int and 0 < row["line"] < 1000000:
+                diagnostics.append({key: row[key] for key in ("stage", "exceptionType", "module", "function", "line")})
+        except (ValueError, AttributeError, TypeError):
+            pass
+    return stopped, diagnostics, hashlib.sha256(raw).hexdigest()
+
+
 def cleanup(intent):
     if intent.is_symlink() or not intent.is_file() or intent.stat().st_size > 8192:
         raise ValueError("native_cleanup_intent_invalid")
@@ -179,6 +199,19 @@ def accept(image, artifact_file):
         output = ROOT / ".build" / ("native-acceptance-" + commit + ".json")
         output.write_text(json.dumps(receipt, indent=2) + "\n")
         print(json.dumps({"passed": True, "receipt": str(output), "sourceCommit": commit, "qualifiedGames": []}))
+    except BaseException as error:
+        # Preserve only fixed structured diagnostics; never retain credentials,
+        # arbitrary tracebacks, the seed/save, or raw native output after failure.
+        logs = command(["logs", name], required=False)
+        stopped, diagnostics, output_sha = bounded_diagnostics(logs.stdout + logs.stderr)
+        failed = {"schema": "amz.ap.server-native-source-failure.v1", "sourceCommit": commit, "imageId": image,
+            "runtimeArtifactSha256": hashlib.sha256(artifact_bytes).hexdigest(), "errorType": type(error).__name__,
+            "stopped": stopped, "diagnostics": diagnostics, "boundedOutputSha256": output_sha,
+            "passed": False, "qualifiedGames": []}
+        output = ROOT / ".build" / ("native-failure-" + commit + ".json")
+        output.write_text(json.dumps(failed, indent=2) + "\n")
+        print(json.dumps({"passed": False, "receipt": str(output), "stopped": stopped, "diagnostics": diagnostics, "qualifiedGames": []}))
+        raise
     finally:
         cleanup(intent)
 

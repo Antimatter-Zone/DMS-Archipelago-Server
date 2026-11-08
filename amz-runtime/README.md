@@ -6,6 +6,8 @@ The runtime uses Archipelago 0.6.8, commit `54803be064fc7e80c4628777ed0b46a9390f
 
 The native eager-world loader exists only to collect hint exclusions. The second explicit overlay patch replaces that loader with `world-hints.v1.json`: identical empty defaults plus ALTTP's Triforce and CVCotM's Battle Arena exclusions, checked against every declaration in the pinned inventory without executing worlds. Dynamic, inherited or unrecognized overrides fail verification. Its exact metadata hash is bound in the runtime source/artifact. Unknown packs and AMZ world packs refuse startup until separately approved metadata and qualification exist; no custom world silently receives an assumed empty default. The isolated generation worker remains authoritative for executable worlds and settings.
 
+The pinned native host-settings loader can also import every world while creating a missing host.yaml. The third explicit patch initializes the native `Settings(None)` cache with GUI/autosave disabled before importing MultiServer. Only native core defaults, fixed launcher arguments and reviewed embedded room rules apply. Mutable host settings are not an additional operational configuration source. This is a source-reviewed prevention measure; it is not evidence of the cause of the earlier failed native smoke.
+
 Run source checks without importing engine code:
 
 ```text
@@ -19,3 +21,5 @@ From a clean committed checkout, `python -B amz-runtime/build.py --prepare` crea
 `server-runtime.v1.json` is the versioned external `amz.ap.server-runtime.v1` input for Portal. Its SHA-256, exact Server commit, engine/pack, overlay inputs, immutable bases, requirements and provenance must match the protected signed operator policy before Member allocation or power actions. The artifact is source evidence; it is not an image signature, game qualification or deployment approval. Portal does not import files from this checkout.
 
 Qualification remains open: image/egg signatures, redistribution/notice review, resource limits, standard AP client and real Paint/Yacht Dice browser connectivity, original-seed checkpoint load, DMS/Wings WebSocket routing and off-node encrypted recovery all require their own receipts. No image is published and no lobby is provisioned by these source checks. Keep the legacy deployment and Portal overlay until replacement coverage and rollback have been verified.
+
+The first actual local image candidate (`b69bea07`) built successfully but its synthetic native smoke exited before a running observation. Its harness cleaned all owned containers and private inputs. The cause was not captured; do not attribute that observed failure to host settings. The current harness retains only bounded structured stage/exception diagnostics and output hashes on future failures, before the same exact cleanup. The native smoke remains open until a new independently reviewed image and runtime window pass.

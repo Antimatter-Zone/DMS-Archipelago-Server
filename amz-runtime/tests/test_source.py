@@ -61,6 +61,39 @@ class SourceTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "override"):
                     build.verify_hints(engine)
 
+    def test_core_settings_uses_native_defaults_without_a_host_file_or_world_dump(self):
+        source = ast.parse((ROOT / "runtime/ap_runtime.py").read_text())
+        function = next(node for node in source.body if isinstance(node, ast.FunctionDef) and node.name == "initialize_core_settings")
+        namespace = {}
+        exec(compile(ast.Module(body=[function], type_ignores=[]), "trusted-settings-adapter", "exec"), namespace)
+        calls = []
+        defaults = object()
+        def factory(location):
+            calls.append(location)
+            return defaults
+        def get_settings():
+            raise AssertionError("native loader should not run before its pinned core cache is installed")
+        settings = SimpleNamespace(Settings=factory, get_settings=get_settings)
+        namespace["initialize_core_settings"](settings)
+        self.assertEqual(calls, [None])
+        self.assertIs(get_settings._cache, defaults)
+        self.assertTrue(settings.no_gui and settings.skip_autosave)
+        row = next(row for row in json.loads((ROOT / "engine-manifest.json").read_text())["files"] if row["path"] == "settings.py")
+        self.assertEqual(hashlib.sha256(build.source_bytes(ROOT.parent / "settings.py")).hexdigest(), row["sha256"])
+
+    def test_failure_diagnostics_are_bounded_and_discard_raw_errors_and_secret_fields(self):
+        spec = importlib.util.spec_from_file_location("native_acceptance", ROOT / "tests/native-acceptance.py")
+        harness = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(harness)
+        row = {"schema": "amz.ap.runtime-diagnostic.v1", "stage": "native_import", "exceptionType": "ModuleNotFoundError", "module": "settings", "function": "<module>", "line": 39, "password": "must-not-be-retained"}
+        raw = ("raw error must-not-be-retained\n" + json.dumps(row) + "\nAP runtime stopped: native_import:ModuleNotFoundError\n").encode()
+        stopped, values, digest = harness.bounded_diagnostics(raw * 100)
+        self.assertEqual(stopped, {"stage": "native_import", "code": "ModuleNotFoundError"})
+        self.assertEqual(len(values), 16)
+        self.assertNotIn("must-not-be-retained", json.dumps(values))
+        self.assertEqual(len(digest), 64)
+        self.assertEqual(harness.bounded_diagnostics(b"AP runtime stopped: secret:secret\n")[0], None)
+
     def test_only_normalized_relative_paths(self):
         for name in ("", ".", "../x", "/x", "a/../x", "a//x", "./x", "C:/x", "a\\b", "NUL", "x/COM1.txt", "a\x00b"):
             with self.subTest(name=name), self.assertRaises(ValueError):

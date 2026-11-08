@@ -50,6 +50,13 @@ def controlled_world_data(context):
     value=read_fixed(Path('/opt/amz-ap/world-hints.v1.json'),65536)
     if hashlib.sha256(value).hexdigest()!=EXPECTED_HINTS:raise ValueError('headless_hint_integrity')
     apply_world_hints(context,json.loads(value))
+
+def initialize_core_settings(module):
+    # get_settings() otherwise creates host.yaml by dumping every world's
+    # settings. This dedicated service accepts native core defaults plus only
+    # the fixed args/embedded reviewed room rules, never a mutable host.yaml.
+    module.no_gui=True;module.skip_autosave=True
+    module.get_settings._cache=module.Settings(None)
 def main():
     global stage
     if not Path('/.dockerenv').is_file() or os.getuid()==0: raise ValueError('nonroot_container_required')
@@ -68,7 +75,7 @@ def main():
     # Imports occur only after the exact container source inventory is verified.
     os.environ.clear();os.environ.update({'PATH':'/usr/local/bin:/usr/bin:/bin','HOME':str(ROOT),'XDG_CONFIG_HOME':str(ROOT/'config'),'XDG_CACHE_HOME':str(ROOT/'cache'),'APPDATA':str(ROOT),'SKIP_REQUIREMENTS_UPDATE':'1','PYTHONDONTWRITEBYTECODE':'1'})
     stage='native_import';sys.path.insert(0,str(ENGINE));import Utils, settings
-    settings.no_gui=True;settings.skip_autosave=True
+    initialize_core_settings(settings)
     for name,destination in [('user_path',ROOT),('home_path',ROOT),('cache_path',ROOT/'cache'),('output_path',ROOT/'output')]:getattr(Utils,name).cached_path=str(destination)
     import MultiServer
     # The native loader imports every executable world solely for hint metadata.
@@ -133,6 +140,6 @@ if __name__=='__main__':
         if trace:
             module=str(trace.tb_frame.f_globals.get('__name__',''))
             function=trace.tb_frame.f_code.co_name
-            if re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.]*',module) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*',function):print(json.dumps({'schema':'amz.ap.runtime-diagnostic.v1','stage':stage,'exceptionType':type(error).__name__,'module':module,'function':function,'line':trace.tb_lineno}),file=sys.stderr)
+            if re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.]*',module) and re.fullmatch(r'(?:[A-Za-z_][A-Za-z0-9_]*|<module>)',function):print(json.dumps({'schema':'amz.ap.runtime-diagnostic.v1','stage':stage,'exceptionType':type(error).__name__,'module':module,'function':function,'line':trace.tb_lineno}),file=sys.stderr)
         code=str(error) if isinstance(error,ValueError) and str(error) in {'private_file_invalid','private_root_invalid','runtime_configuration_invalid','runtime_overlay_changed','seed_integrity','manifest_pin_mismatch','engine_pin_mismatch','source_path_invalid','engine_source_changed','checkpoint_integrity','explicit_checkpoint_required','initial_checkpoint_failed','nonroot_container_required','headless_world_pack_unsupported','headless_hint_integrity'} else type(error).__name__
         print('AP runtime stopped: '+stage+':'+code,file=sys.stderr);raise SystemExit(1)

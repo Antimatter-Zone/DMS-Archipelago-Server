@@ -43,6 +43,20 @@
           "sha256": "b87a23ed06f89f5a3a27b86145e749c78b6664b23e27d4781632098f8225decd"
         }
       ]
+    },
+    {
+      "id": "pinned-native-core-settings-v1",
+      "description": "Initialize pinned native Settings(None) with GUI/autosave disabled before MultiServer imports; prevent mutable host.yaml creation from eagerly executing every world. Fixed args and reviewed embedded room options remain authoritative.",
+      "files": [
+        {
+          "path": "ap_runtime.py",
+          "sha256": "bb86bb90b8d3be2868558e2be84e0be6a36f765067cbac9fae95577e1cdc7639"
+        },
+        {
+          "path": "launcher.mjs",
+          "sha256": "b87a23ed06f89f5a3a27b86145e749c78b6664b23e27d4781632098f8225decd"
+        }
+      ]
     }
   ],
   "excludedForkChanges": [
