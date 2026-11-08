@@ -102,7 +102,8 @@ def extract_inventory(archive, manifest, destination):
             total += entry.file_size
             if total > 256 * 1024 ** 2:
                 raise ValueError("source_inventory_limit")
-            value = source.read(entry)
+            original = source.read(entry)
+            value = original
             if row["algorithm"] == "sha256-lf":
                 value = value.replace(b"\r\n", b"\n")
             elif row["algorithm"] != "sha256":
@@ -114,7 +115,9 @@ def extract_inventory(archive, manifest, destination):
                 raise ValueError("source_path_invalid")
             target.parent.mkdir(parents=True, exist_ok=True)
             with target.open("xb") as output:
-                output.write(value)
+                # Verification normalizes once; keep the exact upstream bytes.
+                # CRCRLF sequences are not idempotent under repeated replace().
+                output.write(original)
 
 
 def reviewed_source():

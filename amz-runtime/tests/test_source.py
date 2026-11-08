@@ -113,9 +113,24 @@ class SourceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             destination = Path(directory)
             build.extract_inventory(self.archive(), {"files": [row]}, destination)
-            self.assertEqual((destination / "source.py").read_bytes(), b"hello\n")
+            self.assertEqual((destination / "source.py").read_bytes(), b"hello\r\n")
             with self.assertRaises(ValueError):
                 build.extract_inventory(self.archive(), {"files": [row]}, destination)
+
+    def test_inventory_preserves_original_bytes_for_one_time_newline_verification(self):
+        # The pinned LinksAwakeningClient source has repeated CR bytes. Writing
+        # the already-normalized bytes made the runtime normalize a second time.
+        original = b"first\r\r\r\nsecond\r\n"
+        canonical = original.replace(b"\r\n", b"\n")
+        expected = hashlib.sha256(canonical).hexdigest()
+        self.assertNotEqual(hashlib.sha256(canonical.replace(b"\r\n", b"\n")).hexdigest(), expected)
+        row = {"path": "source.py", "algorithm": "sha256-lf", "sha256": expected}
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory)
+            build.extract_inventory(self.archive(value=original), {"files": [row]}, destination)
+            installed = (destination / "source.py").read_bytes()
+            self.assertEqual(installed, original)
+            self.assertEqual(hashlib.sha256(installed.replace(b"\r\n", b"\n")).hexdigest(), expected)
 
     def test_inventory_rejects_links_traversal_missing_and_changed_inputs(self):
         for name, value, mode, algorithm in (("source.py", b"changed", stat.S_IFREG, "sha256"), ("source.py", b"hello", stat.S_IFLNK, "sha256"), ("../escape", b"hello", stat.S_IFREG, "sha256"), ("source.py", b"hello", stat.S_IFREG, "md5")):
