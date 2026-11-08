@@ -145,14 +145,35 @@ def accept(image, artifact_file):
         assert restored["seedArtifactSha256"] == seed_sha
         client("old", {"authenticated": False, "refused": True})
         client("current", {"authenticated": True, "refused": False})
-        peak_bytes = int(command(["inspect", "--format", "{{.HostConfig.Memory}}", name]).stdout)
-        assert peak_bytes == 512 * 1024 ** 2
+        running = json.loads(command(["inspect", name]).stdout)[0]
+        limits = running["HostConfig"]
+        assert limits["Memory"] == 512 * 1024 ** 2 and limits["MemorySwap"] == limits["Memory"]
+        assert limits["NanoCpus"] == 1000000000 and limits["PidsLimit"] == 128
+        assert limits["ReadonlyRootfs"] and limits["NetworkMode"] == "none" and not limits["PortBindings"]
+        assert limits["CapDrop"] == ["ALL"] and "no-new-privileges=true" in limits["SecurityOpt"]
+        stop()
+        # Real negative native load: a modified save cannot start a new listener or
+        # reuse stale telemetry as proof of the new launch.
+        current_checkpoint = (storage / "seed.apsave").read_bytes()
+        config.update({"requiredCheckpointSha256": hashlib.sha256(current_checkpoint).hexdigest(), "runtimeLaunchId": str(uuid.uuid4())})
+        (storage / "seed.apsave").write_bytes(current_checkpoint + b"tamper")
+        start()
+        for _ in range(100):
+            failed = json.loads(command(["inspect", name]).stdout)[0]
+            if not failed["State"]["Running"]:
+                break
+            time.sleep(.2)
+        assert not failed["State"]["Running"] and failed["State"]["ExitCode"] != 0
+        failure_logs = command(["logs", name])
+        assert b"checkpoint_integrity" in failure_logs.stdout + failure_logs.stderr
+        assert json.loads((storage / "runtime-status.json").read_text())["runtimeLaunchId"] != config["runtimeLaunchId"]
         stop()
         receipt = {"schema": "amz.ap.server-native-source-acceptance.v1", "sourceCommit": commit, "imageId": image,
             "runtimeArtifactSha256": hashlib.sha256(artifact_bytes).hexdigest(), "engineCommit": build.ENGINE_COMMIT,
             "worldPackSha256": build.WORLD_PACK_SHA256, "headlessMetadataSha256": build.WORLD_HINTS_SHA256,
             "seedSha256": seed_sha, "restoredCheckpointSha256": checkpoint_sha, "credentialEpoch": 2,
             "oldPasswordRejected": True, "newPasswordAccepted": True, "checksRetained": True,
+            "tamperedCheckpointRejected": True,
             "network": "none", "hostPorts": [], "memoryLimitMiB": 512, "cpus": 1, "observations": observed,
             "qualification": "synthetic standard AP protocol and native checkpoint only; no game/browser/DMS qualification", "passed": True}
         output = ROOT / ".build" / ("native-acceptance-" + commit + ".json")
