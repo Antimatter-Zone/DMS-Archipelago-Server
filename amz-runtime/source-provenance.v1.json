@@ -1,0 +1,80 @@
+{
+  "schema": "amz.ap.runtime-provenance.v1",
+  "sourceRepository": "Antimatter-Zone/DMS-Archipelago-Portal",
+  "sourceCommit": "63ec86cfb7845de67908a11291d015568bd477aa",
+  "serverBaselineCommit": "0a601afbf575a4660077304a18ecb521ff1886c4",
+  "originalFiles": [
+    {
+      "path": "ap_runtime.py",
+      "sourcePath": "operator/runtime/ap_runtime.py",
+      "sha256": "c72a85554407a724c80e3fed2bffec12ddb7be3d7b9de9719d17fbba4cbc4897"
+    },
+    {
+      "path": "launcher.mjs",
+      "sourcePath": "operator/runtime/launcher.mjs",
+      "sha256": "54a7252f9dfe88c522c4d85d1337840f59daa05a6d76283f976460bed366b6ef"
+    }
+  ],
+  "orderedPatches": [
+    {
+      "id": "server-runtime-ownership-comments-v1",
+      "description": "Rehome ownership comments only; preserve existing runtime behavior.",
+      "files": [
+        {
+          "path": "ap_runtime.py",
+          "sha256": "bf72a9b0cb23309333402aca4d67891ef0480bdfa557a4effa559e6da47a5ecf"
+        },
+        {
+          "path": "launcher.mjs",
+          "sha256": "b87a23ed06f89f5a3a27b86145e749c78b6664b23e27d4781632098f8225decd"
+        }
+      ]
+    },
+    {
+      "id": "pinned-headless-hint-metadata-v1",
+      "description": "Replace only eager executable-world hint loader with equivalent statically verified data for this exact official pack. Unknown and AMZ packs refuse startup until separately approved.",
+      "files": [
+        {
+          "path": "ap_runtime.py",
+          "sha256": "13aa75c545cf51889bd769b2d6c53268d0022ba06f7e1ebac546157158ce6e09"
+        },
+        {
+          "path": "launcher.mjs",
+          "sha256": "b87a23ed06f89f5a3a27b86145e749c78b6664b23e27d4781632098f8225decd"
+        }
+      ]
+    }
+  ],
+  "excludedForkChanges": [
+    {
+      "path": "worlds/sa2b/AestheticData.py",
+      "baselineSha256": "24277d54f6c46e4ab9bfddac86ad92a177748f762016ee33f8ae2fadb8cba51d",
+      "forkSha256": "204cfc8f4bd6fe58b879ac8c7aa2bf465305860d4dea793f638897d97b97a8eb"
+    },
+    {
+      "path": "worlds/sa2b/Rules.py",
+      "baselineSha256": "14ece82bdca68dc06fdeefe5a389d44f147586df56bee8797a4c22963926a872",
+      "forkSha256": "e20a13f192ca5267bad9151bbdddd2fe25cfd9e3bbf0f4ead7544981ddad88aa"
+    },
+    {
+      "path": "worlds/sa2b/__init__.py",
+      "baselineSha256": "97c695be5f71248dcf19ac2a4f7028cdff23480cb4fe5f2b620a69df2f598710",
+      "forkSha256": "1d269ab3522bc618e39deeb177772d84fa2690a6d3224c3476b9eaf294b99bb5"
+    },
+    {
+      "path": "worlds/sa2b/archipelago.json",
+      "baselineSha256": "a0067fa1e592a371a0e7b7ecae8b40067bbd6d5a061b40f3a7a37a2b161fe91f",
+      "forkSha256": "21887b3bb79780ac6305a7f880b3e907fbda184dc124e8293120961ca52fc15d"
+    },
+    {
+      "path": "worlds/sa2b/docs/setup_en.md",
+      "baselineSha256": "8d97a10d344dee47662c1ec67bf6a30e10131a68e6450bd7f3dce158cdf60cb1",
+      "forkSha256": "b29911e871b5de3af99b200b0363c24f438e25218c5f6f76199363de2a4c1d74"
+    },
+    {
+      "path": "worlds/tunic/ladder_storage_data.py",
+      "baselineSha256": "faec3822e68b0115711c22fee9fa034480b7ffd96b5c0ae121e3c023516c5400",
+      "forkSha256": "612948af30d378f3c118e564f9e5d62cc1a0e1d17aa1099d6ff64a453fcb5c05"
+    }
+  ]
+}
