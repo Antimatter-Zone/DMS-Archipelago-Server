@@ -4,11 +4,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /usr/lib/x86_64-linux-gnu/libstdc++.so.6
 COPY --from=node /usr/lib/x86_64-linux-gnu/libgcc_s.so.1 /usr/lib/x86_64-linux-gnu/libgcc_s.so.1
-COPY --from=node /usr/lib/x86_64-linux-gnu/libatomic.so.1 /usr/lib/x86_64-linux-gnu/libatomic.so.1
 COPY --from=node /usr/local/LICENSE /licenses/Node-LICENSE
 COPY wheels/ /wheels/
 COPY requirements.lock /requirements.lock
-RUN --network=none python -m pip install --no-cache-dir --no-index --find-links=/wheels --require-hashes --no-deps -r /requirements.lock \
+RUN --network=none node -e "if (process.version !== 'v24.20.0') process.exit(1)" \
+ && python -m pip install --no-cache-dir --no-index --find-links=/wheels --require-hashes --no-deps -r /requirements.lock \
  && python -m pip check && rm -rf /wheels
 COPY engine/ /engine/
 COPY runtime/ /opt/amz-ap/

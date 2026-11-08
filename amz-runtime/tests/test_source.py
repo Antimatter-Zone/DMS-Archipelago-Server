@@ -95,6 +95,8 @@ class SourceTests(unittest.TestCase):
         dockerfile = (ROOT / "Dockerfile").read_text()
         self.assertIn(build.PYTHON_IMAGE, dockerfile)
         self.assertIn(build.NODE_IMAGE, dockerfile)
+        self.assertNotIn("libatomic.so", dockerfile)
+        self.assertIn("process.version !== 'v24.20.0'", dockerfile)
         self.assertIn("RUN --network=none", dockerfile)
         self.assertIn("--no-index", dockerfile)
         self.assertIn("--require-hashes --no-deps", dockerfile)

@@ -208,7 +208,7 @@ def prepare():
     artifact = {"schema": "amz.ap.server-runtime.v1", "version": 1, "repository": "Antimatter-Zone/DMS-Archipelago-Server", "sourceCommit": commit,
         "engine": {"version": "0.6.8", "commit": ENGINE_COMMIT, "archiveSha256": ENGINE_ARCHIVE_SHA256, "worldPackSha256": WORLD_PACK_SHA256},
         "overlay": {"sha256": digest(canonical({"schema": "amz.ap.runtime-overlay.v1", "files": overlay})), "files": overlay},
-        "toolchain": {"pythonImage": PYTHON_IMAGE, "nodeImage": NODE_IMAGE, "requirementsSha256": digest(source_bytes(ROOT / "requirements.lock")), "dependenciesSha256": digest(source_bytes(ROOT / "dependencies.v1.json"))},
+        "toolchain": {"pythonImage": PYTHON_IMAGE, "nodeImage": NODE_IMAGE, "dockerfileSha256": digest(source_bytes(ROOT / "Dockerfile")), "builderSha256": digest(source_bytes(ROOT / "build.py")), "requirementsSha256": digest(source_bytes(ROOT / "requirements.lock")), "dependenciesSha256": digest(source_bytes(ROOT / "dependencies.v1.json"))},
         "headlessMetadata": {"schema": "amz.ap.headless-world-hints.v1", "sha256": digest(source_bytes(ROOT / "world-hints.v1.json"))},
         "provenance": provenance, "dependencyNotices": notices}
     raw = json.dumps(artifact, indent=2).encode() + b"\n"
