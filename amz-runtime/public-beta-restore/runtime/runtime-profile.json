@@ -1,0 +1,53 @@
+{
+  "schema": "amz.ap.public-beta.restore-runtime-profile.v1",
+  "profileId": "public-native-restricted-restore-v1",
+  "appVariant": "public-beta",
+  "policyId": "public-disposable-beta-v1",
+  "composition": "server-headless-public-slot-gateway-v1",
+  "imageRepository": "docker.darkmatterservers.com/dms-public-beta/ap-runtime-public-beta",
+  "engineCommit": "54803be064fc7e80c4628777ed0b46a9390f255f",
+  "engineInventorySha256": "ea87c2f934bb559c64deeb76cf61253fdbb0d12b975de02929e18d97d508f54f",
+  "headlessHintsSha256": "68e714887bfe7a867a74bc9a73d759f2b4c2e67a2e67dd0a784fa43b75dd01cc",
+  "allowedSlotGames": [
+    "Yacht Dice"
+  ],
+  "paths": {
+    "configuration": "/home/container/.amz/public-runtime.json",
+    "seed": "/home/container/.amz/public-seed.archipelago",
+    "save": "/home/container/.amz/public-seed.apsave",
+    "status": "/home/container/.amz/public-runtime-status.json",
+    "journal": "/home/container/.amz/public-gateway-journal.json",
+    "control": "/home/container/.amz/public-gateway-control.json",
+    "acknowledgement": "/home/container/.amz/public-gateway-ack.json",
+    "custody": "/home/container/.amz/public-native-custody.amzc",
+    "migration": "/home/container/.amz/public-runtime-migration.json",
+    "runtimeControl": "/home/container/.amz/public-runtime-control.json",
+    "runtimeAcknowledgement": "/home/container/.amz/public-runtime-ack.json",
+    "runtimeOperation": "/home/container/.amz/public-runtime-operation.json"
+  },
+  "limits": {
+    "players": 16,
+    "seedBytes": 16777216,
+    "nativeSaveBytes": 16777216,
+    "controlBytes": 65536,
+    "custodyBytes": 16777216,
+    "migrationBytes": 16384,
+    "expandedNativeSaveBytes": 67108864
+  },
+  "protocol": {
+    "control": "amz.ap.public-beta.gateway-control.v2",
+    "acknowledgement": "amz.ap.public-beta.gateway-control-ack.v2",
+    "runtimeControl": "amz.ap.public-beta.runtime-control.v1",
+    "runtimeAcknowledgement": "amz.ap.public-beta.runtime-ack.v1"
+  },
+  "closedGates": {
+    "nativeRestoreAcceptance": false,
+    "providerStopAcceptance": false,
+    "fenceReopen": false,
+    "productionAdmission": false,
+    "gameplayQualification": false,
+    "browserResume": false
+  },
+  "worldPackSha256": "cb3653610aa43b893508a9f014e6a420ca6aea73e344a0738ee6722806bd2a4a",
+  "nativeRestoreProfileSha256": "e573463a5f570e607c0d14289a2e47e5f1715b9c7960d61546ddd147accdb414"
+}

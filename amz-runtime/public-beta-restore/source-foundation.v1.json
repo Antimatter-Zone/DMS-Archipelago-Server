@@ -1,0 +1,66 @@
+{
+  "schema": "amz.ap.public-beta.restore-foundation.v1",
+  "repository": "Antimatter-Zone/DMS-Archipelago-Server",
+  "freshSourceCommit": "79e2b0d293d9d6f1f12ee05d6bfe8cb13fd6392e",
+  "freshFiles": [
+    {
+      "path": "amz-runtime/public-beta/build.py",
+      "sha256": "b8383a1ca4cdee21c4ab2bffc6a87d9f9538a7099ff9d3d272ec73e1223e746e"
+    },
+    {
+      "path": "amz-runtime/public-beta/Dockerfile",
+      "sha256": "8b696b17fdafcd49c413bcccefcd3eac6782094e7d3f2ecb591d9d93c817b605"
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/gateway_barrier.py",
+      "sha256": "8f7c953249d9d646511599ff267233f617f06223951855259855693f10cee3d9"
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/gateway_hooks.py",
+      "sha256": "dbfb8fe3ee524dfecd761d3b7c188497ab4c5f5944bf34bc025465e8dac9f8e4"
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/native_files.py",
+      "sha256": "31a06a804af044442b4b2040a8e30f4be277bbe44fe5ae544c14b38686dd9e24"
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/checkpoint_custody.py",
+      "sha256": "3ef2db1ea532fecca39b4e9792818458f5cd7833fba175cd9466d08ecabaa818"
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/native_checkpoint.py",
+      "sha256": "ad77afbf01c74fcf275f19c30e1bd016b7920700a3082f70e50eb0fa757abaa6"
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/loader.py",
+      "sha256": "d5afd585c3b4571275b8dad4696d4d7e0d64665eee7650a7ef7a8eda6e46285d"
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/launcher.mjs",
+      "sha256": "4b5b5462906f1a6e0ce57163652dc7d02a6cada4ee634246e7ad3bbab0bd2853"
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/runtime-profile.json",
+      "sha256": "cb3653610aa43b893508a9f014e6a420ca6aea73e344a0738ee6722806bd2a4a"
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/portal-source-manifest.json",
+      "sha256": "e1404bf1f93bc23641c3aef46276aea8db3191d967704e6aabfc365970c49f3f"
+    },
+    {
+      "path": "amz-runtime/public-beta/source-transfer.v1.json",
+      "sha256": "9c42e0921b72e8208bffbd81febf0fd207aea22c1ffe8943c613ec490046757f"
+    }
+  ],
+  "restoreSourceCommit": "88cc5aa87f023d734d8e516fcc23f722c252a9a0",
+  "restoreFiles": [
+    {
+      "path": "amz-runtime/public-beta/runtime/native_restore.py",
+      "sha256": "c92e67ed1f728b3943fac309bfb395eb02dc43594724c26e39baa6943415a20c"
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/native-restore-profile.v1.json",
+      "sha256": "e573463a5f570e607c0d14289a2e47e5f1715b9c7960d61546ddd147accdb414"
+    }
+  ]
+}
