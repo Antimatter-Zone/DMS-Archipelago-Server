@@ -1,0 +1,33 @@
+name: Public runtime source
+on:
+  push:
+    branches: ['codex/public-disposable-beta']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: public-runtime-source-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source:
+    name: Public runtime source
+    if: github.ref == 'refs/heads/codex/public-disposable-beta'
+    runs-on: [amz-pc-source-v1, amz-source-ap-runtime-linux, 'amz-run-${{ github.run_id }}-${{ github.run_attempt }}']
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Verify exact source-only worker and checkout
+        shell: bash
+        run: |
+          test "$(id -u)" = 1001
+          test ! -S /var/run/docker.sock
+          test ! -e /host
+          node .github/ci/public-beta-source-preflight.mjs
+      - name: Check immutable source recipe without preparation or engine import
+        run: python3 -I -B amz-runtime/public-beta/build.py
+      - name: Public Python local fixtures
+        run: python3 -I -B -m unittest discover -s amz-runtime/public-beta/tests -p 'test_*.py'
+      - name: Public artifact, launcher, and source-lane fixtures
+        run: node --test .github/ci/public-beta-source-preflight.test.mjs amz-runtime/public-beta/tests/launcher.test.mjs

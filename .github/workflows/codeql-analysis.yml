@@ -39,6 +39,7 @@ permissions:
 
 jobs:
   analyze:
+    if: ${{ !((github.event_name == 'push' && github.ref == 'refs/heads/codex/public-disposable-beta') || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'codex/public-disposable-beta')) }}
     name: Analyze
     runs-on: ubuntu-latest
 

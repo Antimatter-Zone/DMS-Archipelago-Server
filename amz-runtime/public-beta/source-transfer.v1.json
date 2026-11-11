@@ -1,0 +1,73 @@
+{
+  "schema": "amz.ap.public-beta.runtime-source-transfer.v1",
+  "repository": "Antimatter-Zone/DMS-Archipelago-Portal",
+  "sourceCommit": "29a39c3431a6607b2e9faade355a92f16d6fd74f",
+  "serverBaseCommit": "070697e481303752704ee9e50dccf26f240d214f",
+  "files": [
+    {
+      "sourcePath": "operator/runtime/public-beta/gateway_barrier.py",
+      "sourceBlob": "46a41ad5ba86ce0ff0db0b04b1f3d50a751e51b7",
+      "sourceSha256": "8f7c953249d9d646511599ff267233f617f06223951855259855693f10cee3d9",
+      "path": "runtime/gateway_barrier.py",
+      "sha256": "8f7c953249d9d646511599ff267233f617f06223951855259855693f10cee3d9",
+      "transformation": null
+    },
+    {
+      "sourcePath": "operator/runtime/public-beta/gateway_hooks.py",
+      "sourceBlob": "45316904055dfbe47c3f677bb113a946a55706b8",
+      "sourceSha256": "dbfb8fe3ee524dfecd761d3b7c188497ab4c5f5944bf34bc025465e8dac9f8e4",
+      "path": "runtime/gateway_hooks.py",
+      "sha256": "dbfb8fe3ee524dfecd761d3b7c188497ab4c5f5944bf34bc025465e8dac9f8e4",
+      "transformation": null
+    },
+    {
+      "sourcePath": "operator/runtime/public-beta/native_files.py",
+      "sourceBlob": "2a0ac2ad80a9367323dea27412fc56b2eeca54ac",
+      "sourceSha256": "31a06a804af044442b4b2040a8e30f4be277bbe44fe5ae544c14b38686dd9e24",
+      "path": "runtime/native_files.py",
+      "sha256": "31a06a804af044442b4b2040a8e30f4be277bbe44fe5ae544c14b38686dd9e24",
+      "transformation": null
+    },
+    {
+      "sourcePath": "operator/runtime/public-beta/source-manifest.json",
+      "sourceBlob": "8e4eafbaa5e2da55ff1feb2c89925f9184dfa802",
+      "sourceSha256": "e1404bf1f93bc23641c3aef46276aea8db3191d967704e6aabfc365970c49f3f",
+      "path": "runtime/portal-source-manifest.json",
+      "sha256": "e1404bf1f93bc23641c3aef46276aea8db3191d967704e6aabfc365970c49f3f",
+      "transformation": null
+    },
+    {
+      "sourcePath": "operator/test/public-beta-native-source.py",
+      "sourceBlob": "c09ce74ff486fedfac17cdc544fd8ae2e075bc8f",
+      "sourceSha256": "f8ab77fe5c6bb3e60e28f91604736227abaa05c14c49f31167f93b665dae3939",
+      "path": "tests/test_portal_barrier.py",
+      "sha256": "0c29d9818cc7738cbae154ff469d0b2cd92f11eb47dbadb8841ccb5ae4d3cb06",
+      "transformation": {
+        "before": " / 'runtime' / 'public-beta'",
+        "after": " / 'runtime'",
+        "purpose": "Relocate fixture import path only; retain all assertions."
+      }
+    },
+    {
+      "sourcePath": "operator/test/public-beta-native-files.py",
+      "sourceBlob": "90d06f2b58f93d04f927d679eb9b906db1470b6e",
+      "sourceSha256": "c9c4f103769d18c65e3dbd848f8de5791e0efb26eb7c402ad4075cd23ef1223f",
+      "path": "tests/test_portal_native_files.py",
+      "sha256": "d89d0fbdcb1d59a9c80073c619fe0f08417fd3bf83ace797d1ad258cf9c25b5f",
+      "transformation": {
+        "before": " / \"runtime/public-beta/native_files.py\"",
+        "after": " / \"runtime/native_files.py\"",
+        "purpose": "Relocate fixture import path only; retain all assertions."
+      }
+    }
+  ],
+  "qualification": {
+    "sourceOnly": true,
+    "oldMemberAcceptanceInherited": false,
+    "engineImported": false,
+    "imageBuilt": false,
+    "gameplay": false,
+    "published": false,
+    "productionRegistered": false
+  }
+}

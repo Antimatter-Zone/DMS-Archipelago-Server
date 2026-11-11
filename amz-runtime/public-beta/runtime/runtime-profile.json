@@ -1,0 +1,24 @@
+{
+  "schema": "amz.ap.public-beta.runtime-profile.v1",
+  "profileId": "public-disposable-beta-v1",
+  "appVariant": "public-beta",
+  "policyId": "public-disposable-beta-v1",
+  "composition": "server-headless-public-slot-gateway-v1",
+  "imageRepository": "docker.darkmatterservers.com/dms-public-beta/ap-runtime-public-beta",
+  "engineCommit": "54803be064fc7e80c4628777ed0b46a9390f255f",
+  "engineInventorySha256": "ea87c2f934bb559c64deeb76cf61253fdbb0d12b975de02929e18d97d508f54f",
+  "headlessHintsSha256": "68e714887bfe7a867a74bc9a73d759f2b4c2e67a2e67dd0a784fa43b75dd01cc",
+  "allowedSlotGames": ["Yacht Dice"],
+  "paths": {
+    "configuration": "/home/container/.amz/public-runtime.json",
+    "seed": "/home/container/.amz/public-seed.archipelago",
+    "save": "/home/container/.amz/public-seed.apsave",
+    "status": "/home/container/.amz/public-runtime-status.json",
+    "journal": "/home/container/.amz/public-gateway-journal.json",
+    "control": "/home/container/.amz/public-gateway-control.json",
+    "acknowledgement": "/home/container/.amz/public-gateway-ack.json"
+  },
+  "limits": {"players": 16, "seedBytes": 16777216, "nativeSaveBytes": 16777216, "controlBytes": 65536},
+  "protocol": {"control": "amz.ap.public-beta.gateway-control.v2", "acknowledgement": "amz.ap.public-beta.gateway-control-ack.v2"},
+  "closedGates": {"restartBaselineMigration": false, "restore": false, "fenceReopen": false, "productionAdmission": false, "gameplayQualification": false}
+}

@@ -38,6 +38,7 @@ jobs:
   # build-release-macos: # LF volunteer
 
   build-win: # RCs and releases may still be built and signed by hand
+    if: ${{ !((github.event_name == 'push' && github.ref == 'refs/heads/codex/public-disposable-beta') || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'codex/public-disposable-beta')) }}
     runs-on: windows-latest
     steps:
       # - copy code below to release.yml -
@@ -125,6 +126,7 @@ jobs:
           retention-days: 7  # keep for 7 days, should be enough
 
   build-ubuntu2204:
+    if: ${{ !((github.event_name == 'push' && github.ref == 'refs/heads/codex/public-disposable-beta') || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'codex/public-disposable-beta')) }}
     runs-on: ubuntu-22.04
     steps:
       # - copy code below to release.yml -

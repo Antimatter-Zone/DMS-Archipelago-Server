@@ -1,0 +1,38 @@
+{
+  "schema": "amz.ap.public-beta.native-barrier-source.v1",
+  "engineCommit": "54803be064fc7e80c4628777ed0b46a9390f255f",
+  "engineFiles": [
+    {
+      "path": "MultiServer.py",
+      "algorithm": "sha256-lf",
+      "sha256": "e157abab8a56351d58f1cf5a84c6c2a9144d295956d6be08cbd5811c7a2932de"
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "gateway_barrier.py",
+      "sha256": "8f7c953249d9d646511599ff267233f617f06223951855259855693f10cee3d9"
+    },
+    {
+      "path": "gateway_hooks.py",
+      "sha256": "dbfb8fe3ee524dfecd761d3b7c188497ab4c5f5944bf34bc025465e8dac9f8e4"
+    },
+    {
+      "path": "native_files.py",
+      "sha256": "31a06a804af044442b4b2040a8e30f4be277bbe44fe5ae544c14b38686dd9e24"
+    }
+  ],
+  "protocol": {
+    "control": "amz.ap.public-beta.gateway-control.v2",
+    "acknowledgement": "amz.ap.public-beta.gateway-control-ack.v2",
+    "connection": "amz.ap.public-beta.native-connect.v1"
+  },
+  "worldPackManifestSha256": null,
+  "qualification": {
+    "sourceFixturesOnly": true,
+    "engineImported": false,
+    "runtimeImage": false,
+    "gameplay": false,
+    "productionRegistered": false
+  }
+}
