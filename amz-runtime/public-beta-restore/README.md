@@ -2,10 +2,11 @@
 
 This separate source recipe enrolls a restore entrypoint without changing the
 fresh runtime at79e2b0d2, its artifact/profile, Member source or exact Portal
-provenance copies. It does not build or publish an image, register a provider,
-reopen admission or qualify real restore/browser gameplay. All acceptance flags
-remain false. The historical79 protocol/periodic/custody evidence does not
-qualify this new entrypoint.
+provenance copies. The recipe itself does not build or publish an image,
+register a provider, reopen admission or qualify browser gameplay. All profile
+acceptance flags remain false. The historical79 protocol/periodic/custody
+evidence does not qualify this new entrypoint; the separate local held-restore
+fixture below records its own exact source, image and artifact.
 
 `source-foundation.v1.json` records exact Git-blob byte pins for the reviewed79
 fresh source and88 held-restore helper/profile. The new loader/launcher are
@@ -102,5 +103,39 @@ synthetic current Play authority is implemented. The next separate slice needs
 the concrete CP slot/grant-reference/resource ledger, retained Play handoff and
 same-event-loop native atomic reopen, with durable intent/ACK and revocation
 preservation. Browser-state custody and combined encrypted-save budgets remain
-separate. Real engine restore, controlled stop, actual browser play/resume,
-provider routing and publication/rollout require their own evidence.
+separate. Actual browser play/resume, provider routing/stop and
+publication/rollout require their own evidence.
+
+## Local held-restore evidence
+
+[`evidence/local-held-restore.2026-11-11.json`](evidence/local-held-restore.2026-11-11.json)
+records the reviewed isolated fixture for source
+`f4667d6fc70b6c59df582cef679dc4bf720eab50`, local image
+`sha256:e1de0b9d0dd38270c1f33d68ae4463ab29f00808de75f4ac1430bb9a758fcf64`
+and runtime artifact
+`c3aedaacf75dba528cfb048185584a8ed4faacf30a2a0bf98800c996ce956a4a`.
+It binds a newly run fresh process from 79e2b0d2, its actual stopped journal,
+native custody, positive process-exit receipt and new migration identity.
+
+Two synthetic AP clients exchanged two cross-player items and submitted two
+checks. The real 60-second periodic writer persisted those checks before a
+sealed capture. The owned supervisor waited for exit0 and handler/descendant
+drain, retaining private tmpfs until the stopped journal was captured. The new
+entrypoint restored all captured non-credential native fields, two checks and
+four native received-item entries; it retained the seed, original disconnect
+clock and connection generation 4. Its new backend master differed, the old
+master and reservation proof were refused, and an actual native `fence_held`
+ACK confirmed the retained gate. The restored process then exited0 and drained.
+
+Both exact containers were removed with full-ID acknowledgements and independent
+absence checks. All 25 owned Docker commands and the host guardian settled; the
+foreign-owner shared lease was released and the controller stayed enabled.
+The evidence binds the independent cleanup proof. Synthetic master, seed,
+native save and custody bytes remain in the private QA record, outside Git.
+
+This proves a local actual-engine synthetic protocol and restricted held
+restore fixture. It does not reopen admission, authorize current website Play,
+exercise browser state/gameplay, measure 30/60-minute idle policy, qualify a
+Panel/provider stop or publish/deploy anything. It does not promote the frozen
+profile's source acceptance flags or replace later real Yacht play/resume and
+production-composition acceptance.
