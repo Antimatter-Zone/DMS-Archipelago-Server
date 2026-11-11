@@ -1,0 +1,81 @@
+{
+  "schema": "amz.ap.public-beta.local-native-protocol-evidence.v1",
+  "classification": "private-local-qualification",
+  "observedAt": "2026-11-11T16:49:45.439Z",
+  "sourceCommit": "79e2b0d293d9d6f1f12ee05d6bfe8cb13fd6392e",
+  "sourceCi": {
+    "runId": "43058275826",
+    "jobId": "130653514158",
+    "conclusion": "success"
+  },
+  "engineCommit": "54803be064fc7e80c4628777ed0b46a9390f255f",
+  "engineInventorySha256": "ea87c2f934bb559c64deeb76cf61253fdbb0d12b975de02929e18d97d508f54f",
+  "runtimeArtifactSha256": "7ad3410e15d73d73698e2edb3ff153899d7da2438cbc24e19717a09e0bb7414b",
+  "runtimeProfileSha256": "cb3653610aa43b893508a9f014e6a420ca6aea73e344a0738ee6722806bd2a4a",
+  "localDockerImageId": "sha256:1b9104acd36cb98950aee35e08c12a70ea3efa78b6a55b90ebaaa1d76ce6fc03",
+  "localDockerImageIdKind": "daemon-image-id; not a registry publication or configuration-digest assertion",
+  "seed": {
+    "game": "Yacht Dice",
+    "worldVersion": "2.1.4",
+    "players": 2,
+    "nativeGeneration": true,
+    "bytes": 9864,
+    "sha256": "fe2871d905d6f9f4261f55823c74d6867f238af4f64f3e3bdfa0d51b5f8d4d5f"
+  },
+  "fixture": {
+    "helperSha256": "e4ff7f0286de7441520caa85e263ff47f26628c97246e79b55d31d71fdb2d4e8",
+    "nativeProtocolFixtureSha256": "aac468eba6342e76d015d122b7e8fb1b852ff7d438bd9333a1a77be1b06c28fd",
+    "recordId": "4e049416-863b-4719-9d35-c76dbcdee700",
+    "syntheticClients": 2,
+    "actualNativeProtocol": true,
+    "crossPlayerItems": 2,
+    "submittedChecks": 2,
+    "periodicSaveWithChecks": true,
+    "initialSaveBytes": 3700,
+    "periodicSaveBytes": 3864,
+    "terminalCustodyBytes": 9827,
+    "terminalCustodySha256": "2dbd2240b49ae4e564f711f9680cca5e22df3ccc86e9c0c87271b2d4682c8648",
+    "retainedOriginalDisconnectBasis": true,
+    "nativeConnectionGenerationAfterDisconnect": 4,
+    "admissionHeldAfterCapture": true,
+    "wrongCredentialRefused": true,
+    "unpreparedNativeMasterRefused": true,
+    "nativeMasterAbsentFromLogs": true
+  },
+  "isolation": {
+    "network": "none; client connections use container loopback",
+    "publishedHostPorts": [],
+    "rootFilesystemReadOnly": true,
+    "runtimeUid": 65532,
+    "privateDirectoryMode": "0700",
+    "privateFileMode": "0600",
+    "memoryLimitMiB": 512,
+    "cpuLimit": 1,
+    "pidsLimit": 128,
+    "capabilitiesDropped": "ALL",
+    "noNewPrivileges": true,
+    "hostDockerSocketMounted": false,
+    "productionCredentialsUsed": false,
+    "sharedSchedulingLeaseUsed": true
+  },
+  "cleanup": {
+    "nativeExitCode": 0,
+    "oomKilled": false,
+    "exactOwnedContainerRemoved": true,
+    "sharedSchedulingLeaseReleased": true,
+    "runtimeImageRetainedForLocalQualification": true
+  },
+  "notQualified": {
+    "genuineBrowserGameplay": true,
+    "completion": true,
+    "websiteLoginAndSlotAuthority": true,
+    "signOutRevocation": true,
+    "nativeOrBrowserResume": true,
+    "thirtyMinuteIdlePolicy": true,
+    "retainedEncryptedSaveAndQuotas": true,
+    "dmsProviderAndAllocations": true,
+    "publicAdmission": true,
+    "publicImageRedistributionApproval": true
+  },
+  "effectOnClosedRuntimeGates": "none"
+}

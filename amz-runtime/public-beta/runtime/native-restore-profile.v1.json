@@ -1,0 +1,21 @@
+{
+  "schema": "amz.ap.public-beta.native-restore-profile.v1",
+  "profileId": "public-native-restricted-restore-v1",
+  "policyId": "public-disposable-beta-v1",
+  "sourceOwner": "Antimatter-Zone/DMS-Archipelago-Server",
+  "freshRuntimeSourceCommit": "79e2b0d293d9d6f1f12ee05d6bfe8cb13fd6392e",
+  "freshRuntimeProfileSha256": "cb3653610aa43b893508a9f014e6a420ca6aea73e344a0738ee6722806bd2a4a",
+  "engineCommit": "54803be064fc7e80c4628777ed0b46a9390f255f",
+  "multiServerLfSha256": "e157abab8a56351d58f1cf5a84c6c2a9144d295956d6be08cbd5811c7a2932de",
+  "custodySchema": "amz.ap.public-beta.native-custody.v1",
+  "migrationSchema": "amz.ap.public-beta.native-migration.v1",
+  "sourceOnly": true,
+  "qualification": {
+    "restoreEntrypointRegistered": false,
+    "nativeRestrictedRestore": false,
+    "providerStop": false,
+    "fenceReopen": false,
+    "browserResume": false,
+    "productionRegistered": false
+  }
+}
