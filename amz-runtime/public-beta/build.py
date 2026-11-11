@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent
 BASE = ROOT.parent
 REPOSITORY = BASE.parent
 PORTAL_COMMIT = '29a39c3431a6607b2e9faade355a92f16d6fd74f'
-PROFILE_SHA = '25307866fd727bec5bc42c43d677385e0f2776fcc9d2007d8b45ee9c8372026e'
+PROFILE_SHA = 'cb3653610aa43b893508a9f014e6a420ca6aea73e344a0738ee6722806bd2a4a'
 TRANSFER_SHA = '9c42e0921b72e8208bffbd81febf0fd207aea22c1ffe8943c613ec490046757f'
 BASE_PINS = {
     'build.py': '3365b861acef7c6748d8be77d8172120418bb21f3c2633a932fb7b935617365f',
@@ -35,7 +35,7 @@ PORTAL_PINS = {
     'runtime/native_files.py': '31a06a804af044442b4b2040a8e30f4be277bbe44fe5ae544c14b38686dd9e24',
     'runtime/portal-source-manifest.json': 'e1404bf1f93bc23641c3aef46276aea8db3191d967704e6aabfc365970c49f3f',
 }
-FILES = ('gateway_barrier.py', 'gateway_hooks.py', 'native_files.py', 'checkpoint_custody.py', 'loader.py', 'launcher.mjs',
+FILES = ('gateway_barrier.py', 'gateway_hooks.py', 'native_files.py', 'checkpoint_custody.py', 'native_checkpoint.py', 'loader.py', 'launcher.mjs',
          'portal-source-manifest.json', 'runtime-profile.json', 'source-transfer.v1.json')
 
 

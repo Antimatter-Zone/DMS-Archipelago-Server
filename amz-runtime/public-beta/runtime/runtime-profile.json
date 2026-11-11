@@ -20,7 +20,10 @@
     "control": "/home/container/.amz/public-gateway-control.json",
     "acknowledgement": "/home/container/.amz/public-gateway-ack.json",
     "custody": "/home/container/.amz/public-native-custody.amzc",
-    "migration": "/home/container/.amz/public-runtime-migration.json"
+    "migration": "/home/container/.amz/public-runtime-migration.json",
+    "runtimeControl": "/home/container/.amz/public-runtime-control.json",
+    "runtimeAcknowledgement": "/home/container/.amz/public-runtime-ack.json",
+    "runtimeOperation": "/home/container/.amz/public-runtime-operation.json"
   },
   "limits": {
     "players": 16,
@@ -28,11 +31,14 @@
     "nativeSaveBytes": 16777216,
     "controlBytes": 65536,
     "custodyBytes": 16777216,
-    "migrationBytes": 16384
+    "migrationBytes": 16384,
+    "expandedNativeSaveBytes": 67108864
   },
   "protocol": {
     "control": "amz.ap.public-beta.gateway-control.v2",
-    "acknowledgement": "amz.ap.public-beta.gateway-control-ack.v2"
+    "acknowledgement": "amz.ap.public-beta.gateway-control-ack.v2",
+    "runtimeControl": "amz.ap.public-beta.runtime-control.v1",
+    "runtimeAcknowledgement": "amz.ap.public-beta.runtime-ack.v1"
   },
   "closedGates": {
     "restartBaselineMigration": false,

@@ -35,12 +35,12 @@ no in-flight handler, all preparation rows closed, and the same generation and
 original initial-ready/last-disconnect basis. It durably closes native readiness
 before invoking the synchronous serializer. Failure leaves admission closed.
 
-There is deliberately no default serializer. The future production composition
-must quiesce the exact native background writer and serialize native
-`Context.get_save()` under the held fence. The upstream direct zlib/pickle file
-writer is neither atomic nor fsynced, and its background thread can overlap a
-save; its `save(True)` return alone is insufficient. Bounded compression and
-restricted restore decoding still require that later native integration.
+The primitive deliberately has no default serializer. The separate
+[native checkpoint adapter](NATIVE-CHECKPOINT-CONTROL.md) now binds the exact
+`Context.get_save()` in Public source and replaces overlapping thread writes
+with an equivalent bounded atomic periodic saver. The upstream `save(True)`
+return alone is insufficient. Real native codec/session qualification and
+protected restricted restore integration remain open.
 
 Capture verifies the unchanged barrier before and after the trusted serializer
 and durable publication. The container is `AMZC1` plus NUL, a four-byte big-endian

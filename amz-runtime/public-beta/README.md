@@ -114,6 +114,10 @@ including exact post-stop journal binding and safe lost-ACK replay. It is
 included in the owned source inventory, but the loader's restore/reopen gates
 remain closed until the native serializer, stop authority and current Play
 composition are implemented and qualified. No acceptance flag is promoted.
+The new [native checkpoint/control source](NATIVE-CHECKPOINT-CONTROL.md) wires
+the exact native snapshot hook to serialized atomic local saves, an equivalent
+dirty periodic saver and a distinct held terminal-capture channel. Real native
+codec/session, operator stop and restore/reopen qualification remain open.
 
 ## Source check and later build preparation
 

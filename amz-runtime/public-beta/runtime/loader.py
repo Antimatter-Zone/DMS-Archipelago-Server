@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import signal
 import stat
 import sys
 import types
@@ -24,10 +25,10 @@ STATUS = PRIVATE / 'public-runtime-status.json'
 ENGINE_COMMIT = '54803be064fc7e80c4628777ed0b46a9390f255f'
 ENGINE_SHA = 'ea87c2f934bb559c64deeb76cf61253fdbb0d12b975de02929e18d97d508f54f'
 HINTS_SHA = '68e714887bfe7a867a74bc9a73d759f2b4c2e67a2e67dd0a784fa43b75dd01cc'
-PROFILE_SHA = '25307866fd727bec5bc42c43d677385e0f2776fcc9d2007d8b45ee9c8372026e'
+PROFILE_SHA = 'cb3653610aa43b893508a9f014e6a420ca6aea73e344a0738ee6722806bd2a4a'
 ARCHIVE_SHA = '3b9c408cd43b09ab27691d5a0b8d18686cd113ebdd06fdd9606c229010648ef8'
 STAGE = 'guard'
-FILES = ('gateway_barrier.py', 'gateway_hooks.py', 'native_files.py', 'checkpoint_custody.py', 'loader.py', 'launcher.mjs',
+FILES = ('gateway_barrier.py', 'gateway_hooks.py', 'native_files.py', 'checkpoint_custody.py', 'native_checkpoint.py', 'loader.py', 'launcher.mjs',
          'portal-source-manifest.json', 'runtime-profile.json', 'source-transfer.v1.json')
 UUID = re.compile(r'^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$')
 SHA = re.compile(r'^[a-f0-9]{64}$')
@@ -220,7 +221,10 @@ def verify_inputs():
     verify_inventory(ENGINE, manifest)
     STAGE = 'seed'
     need(sha(read_fixed(SEED, 16777216, private=True)) == config['seedArtifactSha256'], 'public_seed_pin_changed')
-    need(not SAVE.exists() and not SAVE.is_symlink() and not STATUS.exists() and not STATUS.is_symlink(), 'public_existing_run_requires_migration')
+    for name in ('public-seed.apsave', 'public-runtime-status.json', 'public-native-custody.amzc', 'public-runtime-migration.json',
+                 'public-runtime-control.json', 'public-runtime-ack.json', 'public-runtime-operation.json'):
+        file = PRIVATE / name
+        need(not file.exists() and not file.is_symlink(), 'public_existing_run_requires_migration')
     return config, code, strict_json(hints)
 
 
@@ -284,8 +288,9 @@ def native_listener_ready(context, port):
         return False
 
 
-def bind_native(module, config, hints, barrier, hooks_module):
-    state = {'context': None, 'hooks': None}
+def bind_native(module, config, hints, barrier, hooks_module, checkpoint_factory):
+    need(callable(checkpoint_factory), 'public_checkpoint_composition_required')
+    state = {'context': None, 'hooks': None, 'snapshots': None}
     hooks = hooks_module.PublicHooks(barrier, module.process_client_cmd, module.on_client_joined, module.on_client_disconnected)
     module.process_client_cmd = hooks.process_client_cmd
     module.on_client_joined = hooks.on_client_joined
@@ -306,12 +311,81 @@ def bind_native(module, config, hints, barrier, hooks_module):
         context.saving = True
         context.password, context.server_password, context.item_cheat, context.log_network = config['password'], '', False, False
         hooks.bind_context(context)
+        state['context'], state['hooks'] = context, hooks
+        state['snapshots'] = checkpoint_factory(context)
         context._start_async_saving()
         need(context.save(True), 'public_initial_save_failed')
-        state['context'], state['hooks'] = context, hooks
+    def serialized_save(context, exit_save=False):
+        need(state['context'] is context and state['snapshots'] is not None, 'public_checkpoint_composition_required')
+        return state['snapshots'].save_now()
+    def loop_saving(context, atexit_save=True):
+        # The explicit loader loop replaces the native daemon/atexit writer.
+        need(state['context'] is context and state['snapshots'] is not None and context.auto_saver_thread is None, 'public_native_save_thread_forbidden')
     module.Context._load_world_data = world_data
     module.Context.init_save = initialize_save
+    module.Context._save = serialized_save
+    module.Context._start_async_saving = loop_saving
     return state
+
+
+async def drain_native(state, barrier, owner, pump, monitor, native, timeout=10):
+    """Close admission/listener and drain native handlers before the last save.
+
+    websockets13 wait_closed() includes connection-handler completion. Unknown
+    teardown keeps the native owner/journal for reconciliation, never a final
+    save claim from a snapshot preceding an in-flight handler's last mutation.
+    """
+    need(type(timeout) in (int, float) and 0 < timeout <= 10, 'public_shutdown_bound_required')
+    failure = None
+    try:
+        barrier.shutdown()  # No new Connect may enter before any await.
+    except BaseException as error:
+        failure = error
+    monitor.cancel()
+    context, server = state['context'], None
+    try:
+        if context is not None:
+            context.exit_event.set()
+            server = getattr(getattr(context, 'server', None), 'ws_server', None)
+            if server is not None:
+                server.close()
+        async def settle():
+            if pump is not None:
+                await pump.close()
+            if server is not None:
+                await server.wait_closed()
+            results = await asyncio.gather(monitor, native, return_exceptions=True)
+            for result in results:
+                if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
+                    raise result
+        await asyncio.wait_for(settle(), timeout)
+        if failure is not None:
+            raise failure
+        if state['snapshots'] is not None:
+            state['snapshots'].save_now()
+    except BaseException:
+        owner._uncertain, owner._durable = True, None
+        barrier.state['ready'], barrier.state['uncertain'] = False, True
+        raise
+
+
+def install_stop_signals(loop, stop):
+    """Explicit native-loop lifecycle, before the first native task is started.
+
+    Pinned MultiServer later installs its own exit-event callbacks. Those also
+    resolve native completion into the same drain path. No on-import handler.
+    """
+    installed = []
+    try:
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, stop)
+            installed.append(sig)
+    except BaseException:
+        for sig in installed: loop.remove_signal_handler(sig)
+        raise
+    def close():
+        for sig in installed: loop.remove_signal_handler(sig)
+    return close
 
 
 def main():
@@ -320,6 +394,8 @@ def main():
     barrier_module = load_verified_module('gateway_barrier', code['gateway_barrier.py'])
     hooks_module = load_verified_module('gateway_hooks', code['gateway_hooks.py'])
     files_module = load_verified_module('native_files', code['native_files.py'])
+    load_verified_module('checkpoint_custody', code['checkpoint_custody.py'])
+    checkpoint_module = load_verified_module('native_checkpoint', code['native_checkpoint.py'])
     stop_redaction = hooks_module.install_log_redaction(config['password'])
     os.umask(0o077)
     STAGE = 'journal'
@@ -345,22 +421,27 @@ def main():
         STAGE = 'native_import'
         import MultiServer
         STAGE = 'native_binding'
-        state = bind_native(MultiServer, config, hints, barrier, hooks_module)
+        state = bind_native(MultiServer, config, hints, barrier, hooks_module, lambda context: checkpoint_module.NativeSnapshots(files, context))
         sys.argv = ['MultiServer.py', str(SEED), '--host', '0.0.0.0', '--port', str(config['port']), '--savefile', str(SAVE),
                     '--use_embedded_options', '--disable_item_cheat', '--auto_shutdown', '0', '--loglevel', 'warning']
         args = MultiServer.parse_args()
         args.password, args.server_password, args.log_network, args.cert, args.cert_key = config['password'], '', False, None, None
         async def run():
-            status, revision, pump = FixedStatus(), 0, None
+            status, revision, pump, runtime_control = FixedStatus(), 0, None, None
+            stopping = asyncio.Event()
+            remove_signals = install_stop_signals(asyncio.get_running_loop(), stopping.set)
             async def observe():
-                nonlocal revision, pump
+                nonlocal revision, pump, runtime_control
                 while True:
                     context = state['context']
                     if native_listener_ready(context, config['port']):
                         if pump is None:
                             barrier.mark_ready()
                             pump = hooks_module.ControlPump(files, barrier, state['hooks'])
+                            runtime_control = checkpoint_module.RuntimeControl(files, barrier, state['snapshots'], config)
+                        state['snapshots'].periodic()
                         await pump.poll_once()
+                        runtime_control.poll_once()
                         actual = barrier._actual()
                         known = actual is not None and barrier.state['ready'] and not barrier.state['uncertain']
                         revision += 1
@@ -373,30 +454,31 @@ def main():
                     await asyncio.sleep(0.25)
             native = asyncio.create_task(MultiServer.main(args))
             monitor = asyncio.create_task(observe())
+            stop = asyncio.create_task(stopping.wait())
             try:
-                done, _ = await asyncio.wait((native, monitor), return_when=asyncio.FIRST_COMPLETED)
+                done, _ = await asyncio.wait((native, monitor, stop), return_when=asyncio.FIRST_COMPLETED)
                 if monitor in done:
                     await monitor
-                await native
+                if stop not in done:
+                    await native
             finally:
-                if pump:
-                    await pump.close()
-                barrier.shutdown()
-                context = state['context']
-                if context is not None:
-                    context.exit_event.set()
-                    if getattr(context.server, 'ws_server', None):
-                        context.server.ws_server.close()
-                monitor.cancel()
-                await asyncio.gather(monitor, return_exceptions=True)
-                await asyncio.gather(native, return_exceptions=True)
+                try:
+                    stop.cancel()
+                    await asyncio.gather(stop, return_exceptions=True)
+                    await drain_native(state, barrier, files, pump, monitor, native)
+                finally:
+                    remove_signals()
         STAGE = 'native_loop'
         asyncio.run(run())
     finally:
-        if barrier is not None and barrier.state['ready']:
-            barrier.shutdown()
-        files.close()
-        stop_redaction()
+        try:
+            if barrier is not None and barrier.state['ready']:
+                barrier.shutdown()
+        finally:
+            try:
+                files.close()
+            finally:
+                stop_redaction()
 
 
 if __name__ == '__main__':

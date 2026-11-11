@@ -237,16 +237,23 @@ class NativeComposition(unittest.TestCase):
             connect_names, games, played_games = {'p_1': (0, 1)}, {1: 'Yacht Dice'}, {'Archipelago', 'Yacht Dice'}
             non_hintable_names = {}
             endpoints = []
+            auto_saver_thread = None
             def _start_async_saving(self): self.saver_started = True
-            def save(self, force): self.saved = force; return True
+            def save(self, force): self.saved = force; return self._save() if force else True
         module = SimpleNamespace(Context=Context, process_client_cmd=original, on_client_joined=original, on_client_disconnected=original)
         hints = {'engineCommit': loader.ENGINE_COMMIT, 'worldPackSha256': loader.ENGINE_SHA, 'defaultBlacklist': [], 'overrides': {}}
         with tempfile.TemporaryDirectory() as directory, patch.object(loader, 'SAVE', Path(directory) / 'unused.apsave'):
-            state = loader.bind_native(module, config, hints, barrier, gateway_hooks)
+            checkpoints, writes = [], []
+            def factory(context):
+                checkpoints.append(context)
+                return SimpleNamespace(save_now=lambda: writes.append(context) or True)
+            state = loader.bind_native(module, config, hints, barrier, gateway_hooks, factory)
             self.assertIs(module.Context, Context)
             context = Context(); context._load_world_data(); context.init_save()
             self.assertIs(state['context'], context)
             self.assertIs(state['hooks']._context, context)
+            self.assertEqual(checkpoints, [context]); self.assertIsNone(context.auto_saver_thread)
+            self.assertEqual(writes, [context]); self.assertFalse(hasattr(context, 'saver_started'))
             self.assertEqual(context.password, config['password']); self.assertFalse(context.item_cheat); self.assertFalse(context.log_network)
             self.assertFalse(barrier.state['ready']); self.assertIsNone(barrier.state['initialReadyAt'])
             self.assertEqual(context.non_hintable_names['Yacht Dice'], frozenset())
@@ -268,6 +275,64 @@ class NativeComposition(unittest.TestCase):
                 loader.STATUS.write_bytes(b'{"foreign":true}')
                 with self.assertRaisesRegex(loader.Refused, 'status_changed'): status.publish({'schema': 'synthetic', 'revision': 3})
                 self.assertEqual(loader.STATUS.read_bytes(), b'{"foreign":true}')
+
+
+class NativeShutdown(unittest.IsolatedAsyncioTestCase):
+    async def test_stop_handlers_are_explicit_and_installed_before_native_startup(self):
+        callbacks, removed, stopped = {}, [], asyncio.Event()
+        loop = SimpleNamespace(add_signal_handler=lambda sig, callback: callbacks.update({sig: callback}),
+                               remove_signal_handler=lambda sig: removed.append(sig))
+        close = loader.install_stop_signals(loop, stopped.set)
+        self.assertEqual(set(callbacks), {loader.signal.SIGTERM, loader.signal.SIGINT})
+        self.assertFalse(stopped.is_set()); callbacks[loader.signal.SIGTERM]()
+        await asyncio.wait_for(stopped.wait(), 0.1)
+        close(); self.assertEqual(set(removed), set(callbacks))
+
+    async def test_partial_signal_install_failure_restores_earlier_handler(self):
+        removed = []
+        def add(sig, _callback):
+            if sig == loader.signal.SIGINT: raise RuntimeError('synthetic unavailable signal')
+        loop = SimpleNamespace(add_signal_handler=add, remove_signal_handler=lambda sig: removed.append(sig))
+        with self.assertRaises(RuntimeError): loader.install_stop_signals(loop, lambda: None)
+        self.assertEqual(removed, [loader.signal.SIGTERM])
+
+    async def test_final_snapshot_follows_real_handler_drain_instead_of_preceding_it(self):
+        events, progress, close_requested = [], [0], asyncio.Event()
+        exit_event = asyncio.Event()
+        async def handler():
+            await close_requested.wait()
+            await asyncio.sleep(0)
+            progress[0] = 1; events.append('handler_last_mutation')
+        task = asyncio.create_task(handler())
+        class Server:
+            def close(self): events.append('listener_closed'); close_requested.set()
+            async def wait_closed(self): await task; events.append('handlers_drained')
+        class Barrier:
+            state = {'ready': True, 'uncertain': False}
+            def shutdown(self): self.state['ready'] = False; events.append('admission_closed')
+        context = SimpleNamespace(exit_event=exit_event, server=SimpleNamespace(ws_server=Server()))
+        state = {'context': context, 'snapshots': SimpleNamespace(save_now=lambda: events.append(('final_save', progress[0])))}
+        owner = SimpleNamespace(_uncertain=False, _durable=object())
+        native = asyncio.create_task(exit_event.wait()); monitor = asyncio.create_task(asyncio.sleep(3600))
+        await loader.drain_native(state, Barrier(), owner, None, monitor, native)
+        self.assertEqual(events, ['admission_closed', 'listener_closed', 'handler_last_mutation', 'handlers_drained', ('final_save', 1)])
+        self.assertTrue(native.done() and monitor.done() and task.done()); self.assertFalse(owner._uncertain)
+
+    async def test_unknown_handler_drain_has_no_final_snapshot_and_retains_owner(self):
+        writes, exit_event = [], asyncio.Event()
+        class Server:
+            def close(self): pass
+            async def wait_closed(self): await asyncio.Event().wait()
+        barrier = SimpleNamespace(state={'ready': True, 'uncertain': False}, shutdown=lambda: None)
+        owner = SimpleNamespace(_uncertain=False, _durable=object())
+        state = {'context': SimpleNamespace(exit_event=exit_event, server=SimpleNamespace(ws_server=Server())),
+                 'snapshots': SimpleNamespace(save_now=lambda: writes.append(True))}
+        native = asyncio.create_task(exit_event.wait()); monitor = asyncio.create_task(asyncio.sleep(3600))
+        with self.assertRaises(TimeoutError):
+            await loader.drain_native(state, barrier, owner, None, monitor, native, timeout=0.01)
+        self.assertEqual(writes, []); self.assertTrue(owner._uncertain); self.assertIsNone(owner._durable)
+        self.assertEqual(barrier.state, {'ready': False, 'uncertain': True})
+        await asyncio.gather(native, monitor, return_exceptions=True)
 
 
 if __name__ == '__main__':
