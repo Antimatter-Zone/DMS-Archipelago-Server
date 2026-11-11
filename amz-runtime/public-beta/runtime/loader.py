@@ -24,10 +24,10 @@ STATUS = PRIVATE / 'public-runtime-status.json'
 ENGINE_COMMIT = '54803be064fc7e80c4628777ed0b46a9390f255f'
 ENGINE_SHA = 'ea87c2f934bb559c64deeb76cf61253fdbb0d12b975de02929e18d97d508f54f'
 HINTS_SHA = '68e714887bfe7a867a74bc9a73d759f2b4c2e67a2e67dd0a784fa43b75dd01cc'
-PROFILE_SHA = 'b7912cd11d98e026ff89701b526ccefd4ef819126bf09766aa61abb74c203269'
+PROFILE_SHA = '25307866fd727bec5bc42c43d677385e0f2776fcc9d2007d8b45ee9c8372026e'
 ARCHIVE_SHA = '3b9c408cd43b09ab27691d5a0b8d18686cd113ebdd06fdd9606c229010648ef8'
 STAGE = 'guard'
-FILES = ('gateway_barrier.py', 'gateway_hooks.py', 'native_files.py', 'loader.py', 'launcher.mjs',
+FILES = ('gateway_barrier.py', 'gateway_hooks.py', 'native_files.py', 'checkpoint_custody.py', 'loader.py', 'launcher.mjs',
          'portal-source-manifest.json', 'runtime-profile.json', 'source-transfer.v1.json')
 UUID = re.compile(r'^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$')
 SHA = re.compile(r'^[a-f0-9]{64}$')

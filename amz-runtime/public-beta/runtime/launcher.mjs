@@ -10,8 +10,8 @@ import {Transform} from 'node:stream';
 import {StringDecoder} from 'node:string_decoder';
 
 const ROOT='/home/container/.amz',OWNED='/opt/amz-ap-public';
-const PROFILE='b7912cd11d98e026ff89701b526ccefd4ef819126bf09766aa61abb74c203269';
-const FILES=['gateway_barrier.py','gateway_hooks.py','native_files.py','loader.py','launcher.mjs','portal-source-manifest.json','runtime-profile.json','source-transfer.v1.json'].sort();
+const PROFILE='25307866fd727bec5bc42c43d677385e0f2776fcc9d2007d8b45ee9c8372026e';
+const FILES=['gateway_barrier.py','gateway_hooks.py','native_files.py','checkpoint_custody.py','loader.py','launcher.mjs','portal-source-manifest.json','runtime-profile.json','source-transfer.v1.json'].sort();
 const sha=raw=>createHash('sha256').update(raw).digest('hex');
 const need=(ok,code)=>{if(!ok)throw Error(code);};
 const exact=(value,keys)=>!!value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length===keys.length&&keys.every(key=>Object.hasOwn(value,key));

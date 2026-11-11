@@ -107,6 +107,14 @@ stop/deletion, budgets,30/60-minute actions or capacity release. Safe sleep,
 restore/reopen/baseline migration and the token-free trusted current-account
 adapter remain separate required integration work.
 
+The additive [checkpoint custody source](CHECKPOINT-CUSTODY.md) implements a
+fixed-file native-save/barrier envelope and explicit protected journal migration
+primitive. It preserves original idle history and a retained admission hold,
+including exact post-stop journal binding and safe lost-ACK replay. It is
+included in the owned source inventory, but the loader's restore/reopen gates
+remain closed until the native serializer, stop authority and current Play
+composition are implemented and qualified. No acceptance flag is promoted.
+
 ## Source check and later build preparation
 
 Light commands execute no engine, Docker, network or package installation:
