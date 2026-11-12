@@ -210,6 +210,7 @@ class HostPublicationCommand:
         """Exactly one attempt; no retry, replay, reconciliation or inferred ACK."""
         state = _state(self)
         _need(state['mutex'].acquire(blocking=False), 'publication_command_busy')
+        attempted = False
         try:
             _current(state)
             _need(not state['used'], 'publication_command_used')
@@ -220,6 +221,7 @@ class HostPublicationCommand:
             if request['action'] == 'publish':
                 # A lost acknowledgement is unknown, including a successful
                 # rename followed by an expired readback. Never redispatch here.
+                attempted = True
                 state['publicationAttempted'] = True
                 result = state['publisher'].publish(request['channel'], request['requestId'],
                                                      payload, state['nativeWindow'])
@@ -249,7 +251,7 @@ class HostPublicationCommand:
             _current(state)
             return response
         except BaseException as error:
-            if state['publicationAttempted']:
+            if attempted:
                 state['uncertain'] = True
             if isinstance(error, OSError):
                 state['processExitRequired'] = True

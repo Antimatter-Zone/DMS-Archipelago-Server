@@ -162,7 +162,13 @@ class LinuxCommandTests(unittest.TestCase):
         self.assertEqual(response['result']['operationId'], operation)
         self.assertFalse(response['nativeAcknowledged'])
         self.assertFalse(response['activation'])
+        state = self.f.k._COMMANDS[handle]
+        self.assertTrue(state['publicationAttempted'])
+        self.assertFalse(state['uncertain'])
         with self.assertRaisesRegex(self.f.k.PublicationCommandRefused, 'used'): handle.execute(raw)
+        self.assertTrue(state['publicationAttempted'])
+        self.assertFalse(state['uncertain'])
+        self.assertEqual((self.f.root / 'public-yacht-observation-control.json').read_bytes(), payload)
         self.assertFalse(handle.close()['publicationUncertain'])
 
     def test_actual_reads_return_exact_bounded_bytes_or_absent_without_native_proof(self):
@@ -231,7 +237,10 @@ class LinuxCommandTests(unittest.TestCase):
         with patch.object(kernel, '_read_named', side_effect=lost):
             with self.assertRaises(OSError): handle.execute(raw)
         self.assertEqual((self.f.root / 'public-yacht-observation-control.json').read_bytes(), payload)
+        self.assertTrue(state['publicationAttempted'])
+        self.assertTrue(state['uncertain'])
         with self.assertRaisesRegex(self.f.k.PublicationCommandRefused, 'held'): handle.execute(raw)
+        self.assertTrue(state['uncertain'])
         closure = handle.close()
         self.assertTrue(closure['publicationUncertain']); self.assertTrue(closure['processExitRequired'])
 
