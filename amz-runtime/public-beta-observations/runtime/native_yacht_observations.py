@@ -61,6 +61,11 @@ def _json(value, depth=0, count=None):
 
 def _slot_data(value, run, player):
     require(exact(value, SLOT_KEYS), 'yacht_observation_slot_data')
+    # Pinned Main.convert_to_base_types serializes the native category list as
+    # a tuple. Normalize only this known native field into a private JSON copy.
+    categories = value['allowed_categories']
+    require(type(categories) in (list, tuple) and len(categories) == 16, 'yacht_observation_categories')
+    value = {**value, 'allowed_categories': list(categories)}
     _json(value)
     require(value['seed_name'] == run['seedName'] and value['player_name'] == player['slotAlias'] and
             integer(value['player_id'], 1, 16) and value['player_id'] == player['slot'] and value['ap_world_version'] == '2.1.4' and
@@ -159,8 +164,8 @@ class YachtObservationControl:
                         v != BASE + self.seed_data[slot]['goal_score'] for v in locations), 'yacht_observation_network_locations')
             self.seed_locations[slot] = copy.deepcopy(locations)
             items = decoded['precollected_items'].get(slot, [])
-            require(type(items) is list and len(items) <= MAX_ITEMS and all(integer(v, 0) for v in items), 'yacht_observation_start_inventory')
-            self.seed_start[slot] = copy.deepcopy(items)
+            require(type(items) in (list, tuple) and len(items) <= MAX_ITEMS and all(integer(v, 0) for v in items), 'yacht_observation_start_inventory')
+            self.seed_start[slot] = list(items)
         require(set(decoded['slot_info']) == set(self.seed_data) and set(decoded['slot_data']) == set(self.seed_data) and
                 set(decoded['locations']) == set(self.seed_data), 'yacht_observation_seed_roster')
         self.item_names = self._native_names()
@@ -186,12 +191,14 @@ class YachtObservationControl:
         require(type(ctx) is self.abi.module.Context and not ctx.exit_event.is_set() and ctx.auto_saver_thread is None and
                 ctx.seed_name == self.run['seedName'] and ctx.connect_names == {row['slotAlias']: (0, row['slot']) for row in self.roster} and
                 ctx.games == {row['slot']: 'Yacht Dice' for row in self.roster} and
-                ctx.slot_data == self.seed_data and set(ctx.slot_info) == set(self.seed_data) and
+                type(ctx.slot_data) is dict and set(ctx.slot_data) == set(self.seed_data) and
+                set(ctx.slot_info) == set(self.seed_data) and
                 self._native_names() == self.item_names, 'yacht_observation_native_binding')
         for player in self.roster:
             slot = player['slot']; info = ctx.slot_info[slot]
             require(type(info) is self.abi.module.NetworkSlot and info.name == player['slotAlias'] and info.game == 'Yacht Dice' and
                     info.type is self.abi.module.SlotType.player and not info.group_members and
+                    _slot_data(ctx.slot_data[slot], self.run, player) == self.seed_data[slot] and
                     dict(ctx.locations[slot]) == self.seed_locations[slot], 'yacht_observation_native_binding')
 
     def _items(self, player):

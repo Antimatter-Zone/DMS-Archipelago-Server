@@ -53,7 +53,7 @@ def send_new_items(ctx):
 '''
 
 
-def fixture():
+def fixture(*, native_tuples=False):
     temporary = tempfile.TemporaryDirectory()
     scope = {'appVariant': 'public-beta', 'policyId': 'public-disposable-beta-v1', 'environmentId': uid(1),
              'dataEpoch': uid(2), 'roomId': uid(3), 'externalId': 'ap-beta-' + uid(3) + '-r1',
@@ -95,11 +95,11 @@ def fixture():
         slots[player['slot']] = dict(seed_name=run['seedName'], player_name=player['slotAlias'], player_id=player['slot'], race=False,
             game_difficulty=2, score_for_last_check=1000, score_for_goal=800, number_of_dice_fragments_per_dice=3,
             number_of_roll_fragments_per_roll=3, which_story=-1, allow_manual_input=2, goal_score=800,
-            last_check_score=1000, allowed_categories=list(observations.CATEGORY_NAMES[:16]), ap_world_version='2.1.4')
+            last_check_score=1000, allowed_categories=(tuple if native_tuples else list)(observations.CATEGORY_NAMES[:16]), ap_world_version='2.1.4')
     decoded = {'seed_name': run['seedName'], 'connect_names': {p['slotAlias']: (0, p['slot']) for p in roster},
                'slot_info': {p['slot']: net.NetworkSlot(p['slotAlias'], 'Yacht Dice', net.SlotType.player, ()) for p in roster},
                'slot_data': slots, 'locations': {p['slot']: {observations.BASE + 2: (1, 1, 0), observations.BASE + 10: (2, 2, 0)} for p in roster},
-               'precollected_items': {1: [1], 2: []}}
+               'precollected_items': {1: (1,) if native_tuples else [1], 2: () if native_tuples else []}}
     module.EXPECTED_SEED, module.DECODED = SEED, decoded
     with patch.object(observations, 'ENGINE_SHA', observations.sha(SOURCE)):
         abi = observations.VerifiedYachtObservationABI(module, SOURCE)
@@ -153,6 +153,69 @@ class Candidate(unittest.TestCase):
         f.context.received_items[0, 1, True].pop()
         with self.assertRaisesRegex(BarrierError, 'prefix_changed'): f.control.snapshot(f.roster[0]['actorUuid'])
 
+    def test_pinned_native_tuples_and_json_lists_produce_identical_copied_descriptors(self):
+        f = fixture(native_tuples=True); self.addCleanup(f.temporary.cleanup)
+        before_context, before_seed = copy.deepcopy(f.context.slot_data), copy.deepcopy(f.decoded)
+        for player in f.roster:
+            actual = f.control.snapshot(player['actorUuid'])
+            expected = self.f.control.snapshot(player['actorUuid'])
+            self.assertEqual(actual, expected)
+            self.assertEqual(observations.sha(canonical(actual)), observations.sha(canonical(expected)))
+            self.assertIs(type(actual['slotData']['allowed_categories']), list)
+        self.assertEqual(f.context.slot_data, before_context)
+        self.assertEqual(f.decoded, before_seed)
+        self.assertIs(type(f.context.slot_data[1]['allowed_categories']), tuple)
+        self.assertIs(type(f.decoded['precollected_items'][1]), tuple)
+        self.assertIs(type(f.control.seed_start[1]), list)
+        f.control.seed_data[1]['allowed_categories'].reverse()
+        self.assertEqual(f.context.slot_data, before_context)
+
+    def test_only_exact_native_category_sequence_is_normalized(self):
+        class TupleSubclass(tuple): pass
+        class ListSubclass(list): pass
+        f = self.f
+        good = copy.deepcopy(f.decoded['slot_data'][1])
+        for categories in (TupleSubclass(good['allowed_categories']), ListSubclass(good['allowed_categories']),
+                           [tuple(good['allowed_categories'])], tuple([good['allowed_categories'][0]] * 16),
+                           tuple(good['allowed_categories'][:15]), tuple(range(16))):
+            with self.subTest(categories_type=type(categories).__name__):
+                f.decoded['slot_data'][1] = {**good, 'allowed_categories': categories}
+                with self.assertRaises(BarrierError): f.create()
+        f.decoded['slot_data'][1] = {**good, 'which_story': (-1,)}
+        with self.assertRaisesRegex(BarrierError, 'yacht_observation_json'): f.create()
+        with self.assertRaisesRegex(BarrierError, 'yacht_observation_json'): observations._json({'unrelated': (1,)})
+        with self.assertRaisesRegex(BarrierError, 'yacht_observation_json'): observations._json({'allowed_categories': tuple(good['allowed_categories'])})
+
+    def test_native_precollected_sequence_copies_only_bounded_exact_integer_ids(self):
+        class TupleSubclass(tuple): pass
+        class ListSubclass(list): pass
+        class IntSubclass(int): pass
+        f = self.f
+        for items in (TupleSubclass((1,)), ListSubclass([1]), ((1,),), (True,), (IntSubclass(1),),
+                      (-1,), (9007199254740992,), tuple([1] * (observations.MAX_ITEMS + 1))):
+            with self.subTest(items_type=type(items).__name__):
+                f.decoded['precollected_items'][1] = items
+                with self.assertRaisesRegex(BarrierError, 'start_inventory'): f.create()
+        f.decoded['precollected_items'][1] = (1,)
+        control = f.create()
+        f.decoded['precollected_items'][1] = (2,)
+        self.assertEqual(control.seed_start[1], [1])
+        # Genuine Context start/received streams keep their exact native list ABI.
+        f.context.start_inventory[1] = tuple(f.context.start_inventory[1])
+        with self.assertRaisesRegex(BarrierError, 'item_stream'): control.snapshot(f.roster[0]['actorUuid'])
+        f.context.start_inventory[1] = list(f.context.start_inventory[1])
+        f.context.received_items[0, 1, True] = tuple(f.context.received_items[0, 1, True])
+        with self.assertRaisesRegex(BarrierError, 'item_stream'): control.snapshot(f.roster[0]['actorUuid'])
+
+    def test_normalization_cannot_hide_changed_native_context_categories_or_start_items(self):
+        f = fixture(native_tuples=True); self.addCleanup(f.temporary.cleanup)
+        categories = f.context.slot_data[1]['allowed_categories']
+        f.context.slot_data[1]['allowed_categories'] = categories[1:] + categories[:1]
+        with self.assertRaisesRegex(BarrierError, 'native_binding'): f.control.snapshot(f.roster[0]['actorUuid'])
+        f.context.slot_data[1]['allowed_categories'] = categories
+        f.context.start_inventory[1][0] = f.module.NetworkItem(2, -2, 0, 0)
+        with self.assertRaisesRegex(BarrierError, 'start_inventory'): f.control.snapshot(f.roster[0]['actorUuid'])
+
     def test_same_item_names_cannot_hide_changed_network_history(self):
         f = self.f; f.control.snapshot(f.roster[0]['actorUuid'])
         f.context.received_items[0, 1, True][0] = f.module.NetworkItem(2, observations.BASE + 11, 2, 0)
@@ -170,7 +233,7 @@ class Candidate(unittest.TestCase):
     def test_seed_and_roster_mismatch_refuse_before_observation(self):
         f = self.f
         f.context.slot_data[1]['seed_name'] = 'foreign'
-        with self.assertRaisesRegex(BarrierError, 'native_binding'): f.control.snapshot(f.roster[0]['actorUuid'])
+        with self.assertRaisesRegex(BarrierError, 'slot_data'): f.control.snapshot(f.roster[0]['actorUuid'])
         f.context.slot_data = copy.deepcopy(f.decoded['slot_data'])
         f.decoded['locations'][1][observations.BASE + 800] = (1, 1, 0)
         with self.assertRaisesRegex(BarrierError, 'network_locations'): f.create()

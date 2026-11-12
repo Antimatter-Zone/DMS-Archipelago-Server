@@ -32,6 +32,16 @@ not substitute hashes or browser-supplied DTOs for native facts. The initial
 profile admits only one-team, Yacht-only, nongroup player rosters; item-link
 groups and other games require another explicit profile.
 
+Pinned Main converts native list values to tuples when writing multidata. At
+this native-only boundary, exact tuple/list `allowed_categories` and precollected
+item IDs are copied into bounded JSON lists. Category order and integer item IDs
+are validated before use. The live Context and decoded seed are never mutated;
+each current slot is normalized into a separate copy for comparison. No other
+tuple, sequence subclass, nested tuple or browser/control JSON value is admitted.
+The genuine Context's start-inventory and received-item streams remain exact
+native lists. Equivalent native tuples and JSON lists yield identical descriptor
+hashes; normalization cannot hide changed categories or item records.
+
 The producer uses only real network locations from the seed's LocationStore
 mapping. Sparse checks are preserved; the nonnetwork goal event is excluded.
 The `items_handling=7` stream is start inventory followed by
