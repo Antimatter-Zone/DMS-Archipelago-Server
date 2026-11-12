@@ -1,0 +1,39 @@
+{
+  "schema": "amz.ap.public-beta.yacht-observation-profile.v1",
+  "profileId": "public-native-yacht-observation-candidate-v1",
+  "sourceOwner": "Antimatter-Zone/DMS-Archipelago-Server",
+  "sourceOnly": true,
+  "policyId": "public-disposable-beta-v1",
+  "engineCommit": "54803be064fc7e80c4628777ed0b46a9390f255f",
+  "multiServerLfSha256": "e157abab8a56351d58f1cf5a84c6c2a9144d295956d6be08cbd5811c7a2932de",
+  "netUtilsLfSha256": "0c4acb2e0a434bcd91ed03d6e9c66f5d119597b3feb300620241f206bd7f0b06",
+  "module": "native_yacht_observations.py",
+  "moduleSha256": "37b64f6da7afbd2ea1519b986ed844d6885d2304df17d1c22092c9e2f71ec250",
+  "controlSchema": "amz.ap.public-beta.yacht-observation-control.v1",
+  "ackSchema": "amz.ap.public-beta.yacht-observation-ack.v1",
+  "descriptorSchema": "amz.ap.public-beta.yacht-slot-descriptor.v1",
+  "foundationSourceCommit": "b5e5499b1ad3a8b2a69e143329d0f6af5ecbd69d",
+  "foundationFiles": [
+    {
+      "path": "public-beta-effects/runtime/native_yacht_effects.py",
+      "sha256": "a6630c05b97c4971251a66c8108da732dc301587101b44782b75566b2631cdf2"
+    },
+    {
+      "path": "public-beta/runtime/gateway_barrier.py",
+      "sha256": "8f7c953249d9d646511599ff267233f617f06223951855259855693f10cee3d9"
+    },
+    {
+      "path": "public-beta/runtime/native_files.py",
+      "sha256": "31a06a804af044442b4b2040a8e30f4be277bbe44fe5ae544c14b38686dd9e24"
+    }
+  ],
+  "qualification": {
+    "verifiedLoaderEnrolled": false,
+    "actualNativeContext": false,
+    "operatorReadTransport": false,
+    "portalObservationConsumption": false,
+    "imageBuilt": false,
+    "restartCustodyMigration": false,
+    "productionRegistered": false
+  }
+}
