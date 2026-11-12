@@ -34,15 +34,15 @@ DESCRIPTION_RESULT = ROOT / 'observation-seed-description.json'
 DESCRIPTION_LOG = ROOT / 'observation-seed-description-private.log'
 SEED = ROOT / 'public-seed.archipelago'
 IMAGE_ID = 'sha256:1b9104acd36cb98950aee35e08c12a70ea3efa78b6a55b90ebaaa1d76ce6fc03'
-CANDIDATE_COMMIT = '7a9a047afd6c38e9bcce4b98053ee43296f9386b'
+CANDIDATE_COMMIT = '471de022f3bdbce542507175b06bcd2196b635d5'
 ARTIFACT_SHA = '7ad3410e15d73d73698e2edb3ff153899d7da2438cbc24e19717a09e0bb7414b'
 LOADER_SHA = 'd5afd585c3b4571275b8dad4696d4d7e0d64665eee7650a7ef7a8eda6e46285d'
 ENGINE_INVENTORY_SHA = 'ea87c2f934bb559c64deeb76cf61253fdbb0d12b975de02929e18d97d508f54f'
 WORLD_PROFILE_SHA = 'cb3653610aa43b893508a9f014e6a420ca6aea73e344a0738ee6722806bd2a4a'
 HINTS_SHA = '68e714887bfe7a867a74bc9a73d759f2b4c2e67a2e67dd0a784fa43b75dd01cc'
 CANDIDATE_PINS = {
-    'profile.v1.json': '366892cbf8af3df3550179d707c8616bafa2a00ce814fb747edfd4f43fb093b9',
-    'native_yacht_observations.py': '529b7afbd61758e8b9c28c52c72eec87dcc5c75efac101dbbaee7129bce4d3bc',
+    'profile.v1.json': '5a8a1bc1e85be2d6531bc30e8ba13042ccfe68830e75136db25627e9da85902d',
+    'native_yacht_observations.py': 'a6dbe041e2ac40fc78eeffc8f33ffff00366ff3a30e72a0b14a65a288f8a00d2',
     'native_yacht_effects.py': 'a6630c05b97c4971251a66c8108da732dc301587101b44782b75566b2631cdf2',
 }
 SHA = re.compile(r'^[a-f0-9]{64}$')

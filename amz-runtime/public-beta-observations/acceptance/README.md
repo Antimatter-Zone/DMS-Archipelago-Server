@@ -14,7 +14,7 @@ The private supervisor must independently verify and bind:
   source79e2b0d293d9d6f1f12ee05d6bfe8cb13fd6392e. This is a local daemon image
   identity, not a registry publication or image-configuration-digest claim.
 - Actual reviewed source bytes for this acceptance helper and candidate commit
-  `7a9a047afd6c38e9bcce4b98053ee43296f9386b`. New helper commits bind their own
+  `471de022f3bdbce542507175b06bcd2196b635d5`. New helper commits bind their own
   captured hash separately; no self-referential source-commit field is invented.
 - A previously genuinely generated two-player Yacht seed, exact bytes/hash and
   generation provenance. The known previous seed is9864bytes, SHA256
@@ -51,7 +51,7 @@ The manifest has exactly seven keys:
 
 ```text
 schema:'amz.ap.public-beta.yacht-observation-native-acceptance.v1'
-candidateSourceCommit:'7a9a047afd6c38e9bcce4b98053ee43296f9386b'
+candidateSourceCommit:'471de022f3bdbce542507175b06bcd2196b635d5'
 foundationImageId:'sha256:1b9104acd36cb98950aee35e08c12a70ea3efa78b6a55b90ebaaa1d76ce6fc03'
 run:<exact committed-effects run fields, including actual seedName/hash>
 roster:[{actorUuid,slotAlias,team:0,slot}, {...second genuine native slot...}]
@@ -95,7 +95,7 @@ exactly:
 
 ```text
 schema:'amz.ap.public-beta.yacht-observation-seed-description-input.v1'
-candidateSourceCommit:'7a9a047afd6c38e9bcce4b98053ee43296f9386b'
+candidateSourceCommit:'471de022f3bdbce542507175b06bcd2196b635d5'
 foundationImageId:'sha256:1b9104acd36cb98950aee35e08c12a70ea3efa78b6a55b90ebaaa1d76ce6fc03'
 seedSha256:<independently verified genuine seed hash>
 ```
