@@ -1,0 +1,37 @@
+{
+  "schema": "amz.ap.public-beta.yacht-effects-profile.v1",
+  "profileId": "public-native-committed-yacht-effects-candidate-v1",
+  "sourceOwner": "Antimatter-Zone/DMS-Archipelago-Server",
+  "sourceOnly": true,
+  "policyId": "public-disposable-beta-v1",
+  "engineCommit": "54803be064fc7e80c4628777ed0b46a9390f255f",
+  "multiServerLfSha256": "e157abab8a56351d58f1cf5a84c6c2a9144d295956d6be08cbd5811c7a2932de",
+  "netUtilsLfSha256": "0c4acb2e0a434bcd91ed03d6e9c66f5d119597b3feb300620241f206bd7f0b06",
+  "module": "native_yacht_effects.py",
+  "moduleSha256": "ade3c60c6c0ccb52841441ccfe244115fbbad5e4ab94a44e0d5f6b4a28f4ac70",
+  "controlSchema": "amz.ap.public-beta.yacht-effects-control.v1",
+  "committedEffectsSchema": "amz.ap.public-beta.yacht-committed-effects.v1",
+  "journalSchema": "amz.ap.public-beta.yacht-effects-journal.v1",
+  "ackSchema": "amz.ap.public-beta.yacht-effects-ack.v1",
+  "foundationSourceCommit": "79e2b0d293d9d6f1f12ee05d6bfe8cb13fd6392e",
+  "foundationFiles": [
+    {
+      "path": "public-beta/runtime/gateway_barrier.py",
+      "sha256": "8f7c953249d9d646511599ff267233f617f06223951855259855693f10cee3d9"
+    },
+    {
+      "path": "public-beta/runtime/native_files.py",
+      "sha256": "31a06a804af044442b4b2040a8e30f4be277bbe44fe5ae544c14b38686dd9e24"
+    }
+  ],
+  "qualification": {
+    "verifiedLoaderEnrolled": false,
+    "cpCommittedIntentAuthority": false,
+    "operatorDispatcherRegistered": false,
+    "actualNativeHandlers": false,
+    "powerLossRecovery": false,
+    "custodyMigration": false,
+    "browserActionDurability": false,
+    "productionRegistered": false
+  }
+}
