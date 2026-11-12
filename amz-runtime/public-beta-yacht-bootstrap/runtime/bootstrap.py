@@ -500,7 +500,7 @@ def run_native_loader(snapshot):
                             need(lock_state and lock_state['raw'] == state['files']['public-control-publication.lock']['raw'])
                             original_initialize(value)  # Genuine budgeted full write/readback.
                             snapshot_current(snapshot)
-                            attached['journalSha256'] = sha(guard.files.load_journal())
+                            attached['journalSha256'] = sha(canonical(guard.files.load_journal()))
                             state['channel'].startup.current()
                             close_snapshot(snapshot)
                             state['channel'].startup.current()

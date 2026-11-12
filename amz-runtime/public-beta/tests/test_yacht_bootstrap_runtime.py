@@ -1,4 +1,5 @@
 """Bootstrap source/real-owned-FD tests, not image/provider/issuer qualification."""
+import ast
 import base64
 import hashlib
 import inspect
@@ -137,6 +138,60 @@ class BootstrapSourceTests(unittest.TestCase):
         self.assertEqual(result.stdout, b'')
         self.assertEqual(result.stderr, worker.canonical({'schema': worker.FAILURE_SCHEMA,
                          'stage': 'capture_inputs', 'code': 'bootstrap_refused'}) + b'\n')
+
+
+@unittest.skipUnless(sys.platform == 'linux', 'Actual captured composition/NativeFiles journal contract on owned Linux files')
+class BootstrapNativeJournalTests(unittest.TestCase):
+    def test_actual_initialized_journal_digest_binds_decoded_contract_to_fd_bytes_and_refuses_tampering(self):
+        from test_native_publication_composition import NativeFixture
+
+        # Exercise the exact production assignment, not a reconstructed digest
+        # helper or a substitute owner. No engine or bootstrap authority is run.
+        assignments = [node for node in ast.walk(ast.parse(SOURCE.read_text()))
+                       if isinstance(node, ast.Assign) and len(node.targets) == 1
+                       and isinstance(node.targets[0], ast.Subscript)
+                       and isinstance(node.targets[0].value, ast.Name)
+                       and node.targets[0].value.id == 'attached'
+                       and isinstance(node.targets[0].slice, ast.Constant)
+                       and node.targets[0].slice.value == 'journalSha256']
+        self.assertEqual(len(assignments), 1)
+        binding = compile(ast.Module(body=assignments, type_ignores=[]), str(SOURCE), 'exec')
+        for mutation in ('noncanonical', 'missing'):
+            with self.subTest(mutation=mutation):
+                fixture = NativeFixture()  # Genuine budgeted initialize/fsync/readback.
+                try:
+                    state = fixture.k._COMPOSITIONS[fixture.guard]
+                    native = state['modules']['native_files']
+                    self.assertIs(type(fixture.guard.files), native.NativeFiles)
+                    with fixture.guard.transaction():
+                        decoded = fixture.guard.files.load_journal()
+                        self.assertIs(type(decoded), dict)
+                        fd = os.open(native.JOURNAL, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                                     dir_fd=fixture.guard.files._directory)
+                        try:
+                            before = os.fstat(fd)
+                            raw = os.read(fd, native.JOURNAL_LIMIT + 1)
+                            self.assertEqual(native._identity(before), native._identity(os.fstat(fd)))
+                            self.assertEqual(len(raw), before.st_size)
+                        finally: os.close(fd)
+                        self.assertEqual(worker.canonical(decoded), raw)
+                        attached = {}
+                        execute = {'guard': fixture.guard, 'attached': attached,
+                                   'sha': worker.sha, 'canonical': worker.canonical}
+                        exec(binding, execute)
+                        self.assertEqual(attached['journalSha256'], hashlib.sha256(raw).hexdigest())
+                    journal = fixture.root / native.JOURNAL
+                    self.assertEqual(journal.read_bytes(), raw)
+                    if mutation == 'noncanonical': journal.write_bytes(raw + b'\n')
+                    else: journal.unlink()
+                    attached.clear()
+                    with self.assertRaises(native.NativeFilesError):
+                        with fixture.guard.transaction(): exec(binding, execute)
+                    self.assertNotIn('journalSha256', attached)
+                    self.assertTrue(fixture.guard.describe()['uncertain'])
+                    if mutation == 'noncanonical': self.assertEqual(journal.read_bytes(), raw + b'\n')
+                    else: self.assertFalse(journal.exists())
+                finally: fixture.close()
 
 
 @unittest.skipUnless(sys.platform == 'linux', 'Real owned Linux FD/fsync cases, no Windows or provider simulation')
