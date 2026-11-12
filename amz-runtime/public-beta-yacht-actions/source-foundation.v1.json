@@ -1,0 +1,170 @@
+{
+  "schema": "amz.ap.public-beta.yacht-action-foundation.v1",
+  "repository": "Antimatter-Zone/DMS-Archipelago-Server",
+  "sourceCommit": "32bac49dae755b914e5dd078907da0896f231ff5",
+  "freshSourceCommit": "79e2b0d293d9d6f1f12ee05d6bfe8cb13fd6392e",
+  "files": [
+    {
+      "path": "amz-runtime/build.py",
+      "sha256": "3365b861acef7c6748d8be77d8172120418bb21f3c2633a932fb7b935617365f",
+      "gitBlob": "1cd88f6746b1775b8069a65936ad1689855ec002",
+      "bytes": 12560
+    },
+    {
+      "path": "amz-runtime/engine-manifest.json",
+      "sha256": "ea87c2f934bb559c64deeb76cf61253fdbb0d12b975de02929e18d97d508f54f",
+      "gitBlob": "8fceba8e71fcde859a633ed06ca5b2592c90e7ce",
+      "bytes": 656042
+    },
+    {
+      "path": "amz-runtime/world-hints.v1.json",
+      "sha256": "68e714887bfe7a867a74bc9a73d759f2b4c2e67a2e67dd0a784fa43b75dd01cc",
+      "gitBlob": "fd1595c2a01938f620a1d9c945126909e3d7ed38",
+      "bytes": 3139
+    },
+    {
+      "path": "amz-runtime/dependencies.v1.json",
+      "sha256": "aa532aef2028e184b8e805b2eb1f588773dda83aac1268112ff0d9ef3bfdd1cc",
+      "gitBlob": "209d761a7645cdfc577014e6a0ed516ff06a0134",
+      "bytes": 3131
+    },
+    {
+      "path": "amz-runtime/requirements.lock",
+      "sha256": "9437283f9b55a808014f26b13c3a82c961b4eec5bd3685040c30dbaa79a4966b",
+      "gitBlob": "faa1f4c743ae445d0b09397b80227f9b680c8412",
+      "bytes": 773
+    },
+    {
+      "path": "amz-runtime/source-provenance.v1.json",
+      "sha256": "b1842d10fbf1188f8a0709dd9173aacae151faed1676280b59201908c202e8b3",
+      "gitBlob": "2e84624da923a587481becc1c9ac108cb5a6a882",
+      "bytes": 3776
+    },
+    {
+      "path": "amz-runtime/runtime/ap_runtime.py",
+      "sha256": "bb86bb90b8d3be2868558e2be84e0be6a36f765067cbac9fae95577e1cdc7639",
+      "gitBlob": "064f02cf221f4330231912834541d657988e97e1",
+      "bytes": 11041
+    },
+    {
+      "path": "amz-runtime/runtime/launcher.mjs",
+      "sha256": "b87a23ed06f89f5a3a27b86145e749c78b6664b23e27d4781632098f8225decd",
+      "gitBlob": "4f5f65dfca7ec65f76becc46796ee9a9171eb2e6",
+      "bytes": 1880
+    },
+    {
+      "path": "amz-runtime/public-beta/build.py",
+      "sha256": "b8383a1ca4cdee21c4ab2bffc6a87d9f9538a7099ff9d3d272ec73e1223e746e",
+      "gitBlob": "091b1ef8adf86c5206b16dc28e4383d6c7e03a1d",
+      "bytes": 12271
+    },
+    {
+      "path": "amz-runtime/public-beta/Dockerfile",
+      "sha256": "8b696b17fdafcd49c413bcccefcd3eac6782094e7d3f2ecb591d9d93c817b605",
+      "gitBlob": "9ef4b53a6e49021ae525bc032676fe737a7f9a81",
+      "bytes": 1161
+    },
+    {
+      "path": "amz-runtime/public-beta/source-transfer.v1.json",
+      "sha256": "9c42e0921b72e8208bffbd81febf0fd207aea22c1ffe8943c613ec490046757f",
+      "gitBlob": "6ba16c2b18e393c1e676f94fa17e85b18fa8bc4b",
+      "bytes": 3230
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/gateway_barrier.py",
+      "sha256": "8f7c953249d9d646511599ff267233f617f06223951855259855693f10cee3d9",
+      "gitBlob": "46a41ad5ba86ce0ff0db0b04b1f3d50a751e51b7",
+      "bytes": 23718
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/gateway_hooks.py",
+      "sha256": "dbfb8fe3ee524dfecd761d3b7c188497ab4c5f5944bf34bc025465e8dac9f8e4",
+      "gitBlob": "45316904055dfbe47c3f677bb113a946a55706b8",
+      "bytes": 7901
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/native_files.py",
+      "sha256": "31a06a804af044442b4b2040a8e30f4be277bbe44fe5ae544c14b38686dd9e24",
+      "gitBlob": "2a0ac2ad80a9367323dea27412fc56b2eeca54ac",
+      "bytes": 12562
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/checkpoint_custody.py",
+      "sha256": "3ef2db1ea532fecca39b4e9792818458f5cd7833fba175cd9466d08ecabaa818",
+      "gitBlob": "90944569356dcd99d6106a96a501c335887b2a72",
+      "bytes": 19836
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/native_checkpoint.py",
+      "sha256": "ad77afbf01c74fcf275f19c30e1bd016b7920700a3082f70e50eb0fa757abaa6",
+      "gitBlob": "8b0e8179ab9ee78e15be70500e3bc98d7f68eca8",
+      "bytes": 15298
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/loader.py",
+      "sha256": "d5afd585c3b4571275b8dad4696d4d7e0d64665eee7650a7ef7a8eda6e46285d",
+      "gitBlob": "a9e3a3ede4f22c703c56976d997ece3ad86ff06f",
+      "bytes": 26146
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/launcher.mjs",
+      "sha256": "4b5b5462906f1a6e0ce57163652dc7d02a6cada4ee634246e7ad3bbab0bd2853",
+      "gitBlob": "db57ee9771863e087b69c16a59868803847cd7f4",
+      "bytes": 8102
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/portal-source-manifest.json",
+      "sha256": "e1404bf1f93bc23641c3aef46276aea8db3191d967704e6aabfc365970c49f3f",
+      "gitBlob": "8e4eafbaa5e2da55ff1feb2c89925f9184dfa802",
+      "bytes": 1128
+    },
+    {
+      "path": "amz-runtime/public-beta/runtime/runtime-profile.json",
+      "sha256": "cb3653610aa43b893508a9f014e6a420ca6aea73e344a0738ee6722806bd2a4a",
+      "gitBlob": "de1a2bc7ad3d8e4588b0372515c6278be84912cf",
+      "bytes": 2133
+    },
+    {
+      "path": "amz-runtime/public-beta-effects/runtime/native_yacht_effects.py",
+      "sha256": "a6630c05b97c4971251a66c8108da732dc301587101b44782b75566b2631cdf2",
+      "gitBlob": "aba4a4e475edc7c4912e642aaf450231311e375e",
+      "bytes": 20519
+    },
+    {
+      "path": "amz-runtime/public-beta-effects/runtime/profile.v1.json",
+      "sha256": "1f5b693efe61fcdac7ea86946624cc3906fc0da7a89b0149fffd072a2e0eb6a5",
+      "gitBlob": "df1b4d9efef2083faed00635a82565aa6ca6353b",
+      "bytes": 1609
+    },
+    {
+      "path": "amz-runtime/public-beta-observations/runtime/native_yacht_observations.py",
+      "sha256": "a6dbe041e2ac40fc78eeffc8f33ffff00366ff3a30e72a0b14a65a288f8a00d2",
+      "gitBlob": "b9dd21b3482334327b6e107a500f9d17c9d86adf",
+      "bytes": 20083
+    },
+    {
+      "path": "amz-runtime/public-beta-observations/runtime/profile.v1.json",
+      "sha256": "5a8a1bc1e85be2d6531bc30e8ba13042ccfe68830e75136db25627e9da85902d",
+      "gitBlob": "54e142e0b1432fa4cc8b8f7e232df2388ae4f37a",
+      "bytes": 1667
+    },
+    {
+      "path": "amz-runtime/public-beta/tests/test_portal_barrier.py",
+      "sha256": "0c29d9818cc7738cbae154ff469d0b2cd92f11eb47dbadb8841ccb5ae4d3cb06",
+      "gitBlob": "ced83047d510e194ab066571246e6513d574fcd3",
+      "bytes": 20618
+    },
+    {
+      "path": "amz-runtime/public-beta/tests/test_portal_native_files.py",
+      "sha256": "d89d0fbdcb1d59a9c80073c619fe0f08417fd3bf83ace797d1ad258cf9c25b5f",
+      "gitBlob": "6918e7c0ab0decf0db215c8c09cac3782aba728c",
+      "bytes": 12944
+    }
+  ],
+  "transformations": [
+    "Capture exact pinned Git foundation bytes once",
+    "Fresh loader and helper stay byte-identical as separately owned foundation inputs",
+    "New entrypoints enrol the separately pinned Yacht policy, observations and effects"
+  ],
+  "qualification": false
+}
