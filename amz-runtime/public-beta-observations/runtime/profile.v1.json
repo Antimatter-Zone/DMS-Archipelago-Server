@@ -8,7 +8,7 @@
   "multiServerLfSha256": "e157abab8a56351d58f1cf5a84c6c2a9144d295956d6be08cbd5811c7a2932de",
   "netUtilsLfSha256": "0c4acb2e0a434bcd91ed03d6e9c66f5d119597b3feb300620241f206bd7f0b06",
   "module": "native_yacht_observations.py",
-  "moduleSha256": "529b7afbd61758e8b9c28c52c72eec87dcc5c75efac101dbbaee7129bce4d3bc",
+  "moduleSha256": "a6dbe041e2ac40fc78eeffc8f33ffff00366ff3a30e72a0b14a65a288f8a00d2",
   "controlSchema": "amz.ap.public-beta.yacht-observation-control.v1",
   "ackSchema": "amz.ap.public-beta.yacht-observation-ack.v1",
   "descriptorSchema": "amz.ap.public-beta.yacht-slot-descriptor.v1",

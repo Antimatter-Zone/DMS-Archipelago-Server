@@ -53,7 +53,7 @@ def send_new_items(ctx):
 '''
 
 
-def fixture(*, native_tuples=False):
+def fixture(*, native_tuples=False, merged_sentinel=False):
     temporary = tempfile.TemporaryDirectory()
     scope = {'appVariant': 'public-beta', 'policyId': 'public-disposable-beta-v1', 'environmentId': uid(1),
              'dataEpoch': uid(2), 'roomId': uid(3), 'externalId': 'ap-beta-' + uid(3) + '-r1',
@@ -112,6 +112,10 @@ def fixture(*, native_tuples=False):
                               (0, 1, False): [net.NetworkItem(3, observations.BASE + 20, 2, 0)]}
     context.item_names = collections.defaultdict(KeyedDefaultDict)
     context.item_names['Yacht Dice'] = KeyedDefaultDict({1: 'Dice', 2: 'Roll', 3: 'Bonus Point'})
+    if merged_sentinel:
+        # Pinned Context._init_game_data merges GenericWorld's official map.
+        context.item_names['Archipelago'] = KeyedDefaultDict({-1: 'Nothing'})
+        context.item_names['Yacht Dice'].update(context.item_names['Archipelago'])
     barrier = types.SimpleNamespace(identity=copy.deepcopy(scope), state={'ready': True, 'uncertain': False, 'gates': {}}, _master='Z' * 64)
     def create(**overrides):
         return observations.YachtObservationControl(owner, barrier, abi, context, run=run, roster=roster, scope=scope,
@@ -229,6 +233,44 @@ class Candidate(unittest.TestCase):
         self.assertNotIn(999, f.context.item_names['Yacht Dice'])
         f.context.item_names['Yacht Dice'][1] = 'Roll'
         with self.assertRaisesRegex(BarrierError, 'native_binding'): f.control.snapshot(f.roster[0]['actorUuid'])
+
+    def test_native_merged_archipelago_nothing_is_metadata_only_and_preserves_descriptor_hashes(self):
+        f = fixture(native_tuples=True, merged_sentinel=True); self.addCleanup(f.temporary.cleanup)
+        before = copy.deepcopy(f.context.item_names)
+        self.assertEqual(f.control.item_names[-1], 'Nothing')
+        for player in f.roster:
+            actual = f.control.snapshot(player['actorUuid'])
+            expected = self.f.control.snapshot(player['actorUuid'])
+            self.assertEqual(actual, expected)
+            self.assertEqual(observations.sha(canonical(actual)), observations.sha(canonical(expected)))
+            self.assertNotIn('Nothing', actual['observation']['items'])
+        self.assertEqual(f.context.item_names, before)
+
+    def test_native_name_metadata_refuses_other_negative_renamed_sentinel_and_boolean_ids(self):
+        class IntSubclass(int): pass
+        class StrSubclass(str): pass
+        f = self.f
+        for code, name in ((-2, 'Nothing'), (-1, 'Dice'), (-1, 'nothing'),
+                           (False, 'Nothing'), (True, 'Dice'), (IntSubclass(-1), 'Nothing'),
+                           (-1, StrSubclass('Nothing'))):
+            with self.subTest(code_type=type(code).__name__, name_type=type(name).__name__):
+                # Build the key first so bool cannot be hidden by an equal int key.
+                game = {code: name}
+                game.update({key: value for key, value in ((1, 'Dice'), (2, 'Roll'), (3, 'Bonus Point')) if key != code})
+                f.context.item_names['Yacht Dice'] = game
+                with self.assertRaisesRegex(BarrierError, 'item_names'): f.create()
+
+    def test_metadata_sentinel_never_enters_yacht_observed_or_precollected_item_stream(self):
+        f = fixture(merged_sentinel=True); self.addCleanup(f.temporary.cleanup)
+        f.context.received_items[0, 1, True].append(f.module.NetworkItem(-1, observations.BASE + 2, 1, 0))
+        with self.assertRaisesRegex(BarrierError, 'item_stream'): f.control.snapshot(f.roster[0]['actorUuid'])
+        f.context.received_items[0, 1, True].pop()
+        f.decoded['precollected_items'][1] = [-1]
+        with self.assertRaisesRegex(BarrierError, 'start_inventory'): f.create()
+        f.decoded['precollected_items'][1] = [1]
+        f.context.item_names['Yacht Dice'][1] = 'Nothing'
+        control = f.create()
+        with self.assertRaisesRegex(BarrierError, 'unknown_item'): control.snapshot(f.roster[0]['actorUuid'])
 
     def test_seed_and_roster_mismatch_refuse_before_observation(self):
         f = self.f

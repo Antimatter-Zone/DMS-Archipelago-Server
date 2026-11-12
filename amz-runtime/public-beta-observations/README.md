@@ -50,6 +50,11 @@ item, location, source player and flags. The remote-false stream is never used.
 Names come from the native Yacht item map and must be understood by the pinned
 Yacht model. Missing start copies, unknown items, truncation or any changed
 record prefix refuse, even when the replacement records have identical names.
+Pinned `Context._init_game_data` merges Archipelago's official `Nothing=-1`
+entry into every game's name map. The metadata map permits that exact integer
+and exact name only; every other ID retains its nonnegative exact-integer bound.
+This does not admit `-1` or `Nothing` into Yacht's observed or precollected item
+streams. Those retain the existing nonnegative IDs and understood Yacht names.
 
 Each descriptor includes the action binding, full slot data, sparse location
 IDs, complete native item records, item-handling mode/start count, and the exact

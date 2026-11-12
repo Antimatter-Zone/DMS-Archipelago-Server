@@ -176,7 +176,9 @@ class YachtObservationControl:
         require(type(names) in (dict, collections.defaultdict), 'yacht_observation_item_names')
         game = names.get('Yacht Dice')
         require(type(game) in (dict, self.abi.module.Utils.KeyedDefaultDict) and len(game) <= 4096 and
-                all(integer(code, 0) and type(name) is str and 0 < len(name) <= 256 for code, name in game.items()),
+                all(type(name) is str and 0 < len(name) <= 256 and
+                    (integer(code, 0) or (type(code) is int and code == -1 and name == 'Nothing'))
+                    for code, name in game.items()),
                 'yacht_observation_item_names')
         return dict(game)
 
