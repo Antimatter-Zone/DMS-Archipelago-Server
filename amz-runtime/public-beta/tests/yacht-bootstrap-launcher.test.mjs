@@ -81,6 +81,59 @@ test('normal entrypoint code retains fixed worker, original parent bound and str
  assert(source.includes("'/usr/local/bin/python',['-I','-B',OWNED+'/bootstrap.py']"));assert(!source.includes('createServer'));assert(!source.includes('process.env'));assert(source.includes('await settle()'));
  assert(source.includes('output>2097152'));assert(source.includes('child.stdout.on(\'data\',drain)'));assert(!source.includes('process.stderr.write(chunk'));assert(!source.includes('process.stderr.write(raw'));
 });
+
+function actualShutdownFixture(mode,ceiling){
+ assert(['graceful','ignore'].includes(mode));
+ const source=readFileSync(path.join(here,'../../public-beta-yacht-bootstrap/runtime/launcher.mjs'),'utf8');
+ const begin=source.indexOf(' const stop=()=>{'),end=source.indexOf("\n process.on('SIGTERM',stop);",begin);
+ assert(begin>0&&end>begin);assert.equal(source.split(' const stop=()=>{').length,2);
+ // Only the actual production stop/settle declarations are compiled. The
+ // ChildProcess, signals, timers and close event below are real Linux objects.
+ const declarations=source.slice(begin,end);
+ const program=`let count=0;process.on('SIGTERM',()=>{count++;process.stdout.write('term:'+count+'\\n');${mode==='graceful'?"if(count>1)process.exit(1);setTimeout(()=>process.exit(0),250);":''}});setInterval(()=>{},1000);process.stdout.write('ready\\n');`;
+ const child=spawn(process.execPath,['-e',program],{env:{},stdio:['ignore','pipe','pipe']});
+ let text='',errors='',closed=false,fault=null,resolveClosed,rejectClosed,soft,hard;
+ const terminal=new Promise((resolve,reject)=>{resolveClosed=resolve;rejectClosed=reject;});terminal.catch(()=>{});
+ const kill=()=>child.kill('SIGKILL');
+ child.once('error',error=>{fault??=error;kill();});
+ child.once('close',(code,signal)=>{closed=true;clearTimeout(soft);clearTimeout(hard);if(fault)rejectClosed(fault);else resolveClosed({code,signal});});
+ const read=(old,chunk)=>{if(Buffer.byteLength(old)+chunk.length>4096){fault??=Error('Owned shutdown fixture output exceeded its bound');kill();return old;}return old+chunk;};
+ child.stdout.on('data',chunk=>{text=read(text,chunk);});child.stderr.on('data',chunk=>{errors=read(errors,chunk);});
+ soft=setTimeout(()=>{fault??=Error('Owned shutdown fixture exceeded its independent deadline');kill();},ceiling);
+ hard=setTimeout(()=>{if(!closed){fault??=Error('Owned shutdown fixture close is unknown');for(const stream of child.stdio)stream?.destroy();child.unref();rejectClosed(fault);}},ceiling+2000);
+ const flow=new Function('child',`let stopping=false,failed=false,closed=false,killTimer;child.once('close',()=>{closed=true;});${declarations}\nreturn {stop,settle,state:()=>({stopping,failed,closed}),dispose:()=>clearTimeout(killTimer)};`)(child);
+ return {flow,terminal,get text(){return text;},get errors(){return errors;},async marker(value){
+  const deadline=process.hrtime.bigint()+5000000000n;
+  while(!text.includes(value)){assert(!closed,'Owned child closed before its expected signal marker');assert(process.hrtime.bigint()<deadline,'Owned child marker deadline');await new Promise(resolve=>setTimeout(resolve,5));}
+ },async finish(){
+  flow.dispose();if(closed)return;
+  kill();let timer;const known=await Promise.race([terminal.then(()=>true,()=>closed),new Promise(resolve=>{timer=setTimeout(()=>resolve(false),2000);})]);clearTimeout(timer);
+  if(!known){for(const stream of child.stdio)stream?.destroy();child.unref();throw Error('Owned shutdown fixture close remains unknown');}
+ }};
+}
+
+test('actual production stop and repeated settle send one graceful Linux SIGTERM',{skip:process.platform!=='linux'},async()=>{
+ const fixture=actualShutdownFixture('graceful',5000);
+ try{
+  await fixture.marker('ready\n');fixture.flow.stop();await fixture.marker('term:1\n');
+  // Waiting for the first actual handler prevents standard-signal coalescing
+  // from hiding the old duplicate-signal bug.
+  fixture.flow.stop();await Promise.all([fixture.flow.settle(),fixture.flow.settle()]);fixture.flow.stop();
+  assert.deepEqual(await fixture.terminal,{code:0,signal:null});assert.equal(fixture.text,'ready\nterm:1\n');assert.equal(fixture.errors,'');
+  assert.deepEqual(fixture.flow.state(),{stopping:true,failed:false,closed:true});
+ }finally{await fixture.finish();}
+});
+
+test('actual production shutdown retains its original Linux force-kill and bounded known close',{skip:process.platform!=='linux'},async()=>{
+ const fixture=actualShutdownFixture('ignore',20000);
+ try{
+  await fixture.marker('ready\n');const started=process.hrtime.bigint();fixture.flow.stop();await fixture.marker('term:1\n');
+  fixture.flow.stop();await fixture.flow.settle();
+  assert.deepEqual(await fixture.terminal,{code:null,signal:'SIGKILL'});assert.equal(fixture.text,'ready\nterm:1\n');assert.equal(fixture.errors,'');
+  assert(process.hrtime.bigint()-started>=14000000000n,'Original15s force-kill must not become an immediate kill');
+  assert.deepEqual(fixture.flow.state(),{stopping:true,failed:true,closed:true});
+ }finally{await fixture.finish();}
+});
 test('real private pipes reach Python actual channel only after actual Node signature verification',{skip:process.platform!=='linux'},async()=>{
  const python=process.env.AMZ_BOOTSTRAP_TEST_PYTHON;assert(python&&path.isAbsolute(python),'Python wrapper must supply its actual executable, never an alias');
  const f=fixture(),worker=path.join(here,'../../public-beta-yacht-bootstrap/runtime/bootstrap.py');

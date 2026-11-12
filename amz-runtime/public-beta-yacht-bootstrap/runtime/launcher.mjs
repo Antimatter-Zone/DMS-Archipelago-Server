@@ -100,7 +100,7 @@ export async function main(){
  const began=process.hrtime.bigint(),startedWall=Date.now(),deadline=began+30000000000n;let wallFloor=startedWall,initialized=false,stopping=false,failed=false,child,bootTimer,killTimer,challenge,verified,sequence=0,closed=false,closedCode=null;
  const diagnostic=workerFailureDecoder();let diagnosticStage='capture_inputs',outcome=1;
  const current=()=>{const wall=Date.now();need(!stopping&&wall>=wallFloor&&(initialized||process.hrtime.bigint()<deadline));wallFloor=wall;return wall;};
- const stop=()=>{stopping=true;if(child&&child.exitCode===null&&child.signalCode===null){child.kill('SIGTERM');killTimer??=setTimeout(()=>{failed=true;child.kill('SIGKILL');},15000);}};
+ const stop=()=>{if(stopping)return;stopping=true;if(child&&child.exitCode===null&&child.signalCode===null){child.kill('SIGTERM');killTimer??=setTimeout(()=>{failed=true;child.kill('SIGKILL');},15000);}};
  const settle=async()=>{if(!child||closed)return;stop();const end=process.hrtime.bigint()+17000000000n;while(!closed&&process.hrtime.bigint()<end)await new Promise(resolve=>setTimeout(resolve,10));if(!closed){failed=true;child.kill('SIGKILL');for(const stream of child.stdio)stream?.destroy();child.unref();throw Error('bootstrap_worker_close_unknown');}};
  process.on('SIGTERM',stop);process.on('SIGINT',stop);
  try{
