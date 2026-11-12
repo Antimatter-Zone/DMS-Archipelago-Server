@@ -14,7 +14,7 @@ The private supervisor must independently verify and bind:
   source79e2b0d293d9d6f1f12ee05d6bfe8cb13fd6392e. This is a local daemon image
   identity, not a registry publication or image-configuration-digest claim.
 - Actual reviewed source bytes for this acceptance helper and candidate commit
-  `9a6d2dfd762e12198c3a0a391293becc1d77a04d`. New helper commits bind their own
+  `7a9a047afd6c38e9bcce4b98053ee43296f9386b`. New helper commits bind their own
   captured hash separately; no self-referential source-commit field is invented.
 - A previously genuinely generated two-player Yacht seed, exact bytes/hash and
   generation provenance. The known previous seed is9864bytes, SHA256
@@ -51,7 +51,7 @@ The manifest has exactly seven keys:
 
 ```text
 schema:'amz.ap.public-beta.yacht-observation-native-acceptance.v1'
-candidateSourceCommit:'9a6d2dfd762e12198c3a0a391293becc1d77a04d'
+candidateSourceCommit:'7a9a047afd6c38e9bcce4b98053ee43296f9386b'
 foundationImageId:'sha256:1b9104acd36cb98950aee35e08c12a70ea3efa78b6a55b90ebaaa1d76ce6fc03'
 run:<exact committed-effects run fields, including actual seedName/hash>
 roster:[{actorUuid,slotAlias,team:0,slot}, {...second genuine native slot...}]
@@ -81,7 +81,7 @@ contract checks are separate:
 python -I -B -m unittest discover -s amz-runtime/public-beta-observations/acceptance -p 'test_*.py'
 ```
 
-The existing Linux source discovery also loads these six inert contracts through
+The existing Linux source discovery also loads these eleven inert contracts through
 `public-beta/tests/test_native_yacht_observation_acceptance_contract.py`; no
 workflow bytes or actual-image execution are added to the source lane.
 
@@ -95,7 +95,7 @@ exactly:
 
 ```text
 schema:'amz.ap.public-beta.yacht-observation-seed-description-input.v1'
-candidateSourceCommit:'9a6d2dfd762e12198c3a0a391293becc1d77a04d'
+candidateSourceCommit:'7a9a047afd6c38e9bcce4b98053ee43296f9386b'
 foundationImageId:'sha256:1b9104acd36cb98950aee35e08c12a70ea3efa78b6a55b90ebaaa1d76ce6fc03'
 seedSha256:<independently verified genuine seed hash>
 ```
@@ -151,6 +151,23 @@ runtime image, serving readiness, website authorization, browser gameplay,
 completion, current-slot authority, restart migration, save/resume, provider
 routing, public cutover or durable recovery. Failures retain private evidence;
 the helper performs no automatic stale-file repair or profile promotion.
+
+Failure reporting distinguishes Context construction, native load, `init_save`,
+empty-listener checks, initial barrier readiness, ABI enrollment, observation
+construction and first snapshots. The former single `genuine_native_seed_load`
+stage covered all these operations and cannot identify a particular failing
+call in historical evidence. The candidate's native tuple normalization is a
+source-identified compatibility fix; actual acceptance still needs a new run.
+
+Failure stderr adds only a closed exception-type name (or
+`UnclassifiedException`) and at most16 captured-code frames. Each frame has a
+fixed logical source label, a function name present in that verified source's
+AST, and an in-range line number. Only the helper, captured foundation/candidate
+modules and four independently inventory-checked native files are enrolled.
+Unregistered frames and private absolute paths are omitted. The bounded walk
+reads no exception message, arguments, representation, locals, source lines or
+raw log text. Pure contracts exercise secret-bearing exceptions and metadata
+bounds without importing an engine. Native logs remain private as above.
 
 The actual native receipt explicitly records `nativeContextOnly:true`, while
 `cpRosterAuthority`, `currentWebsiteAuthorization`, `browserGameplay`,

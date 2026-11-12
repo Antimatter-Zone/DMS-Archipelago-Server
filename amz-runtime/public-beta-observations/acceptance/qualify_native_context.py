@@ -5,6 +5,7 @@ genuine native loading/item mutation and real NativeFiles are mandatory. This
 entrypoint provides no fixture Context or missing-engine fallback.
 """
 import asyncio
+import ast
 import base64
 import contextlib
 import copy
@@ -33,20 +34,25 @@ DESCRIPTION_RESULT = ROOT / 'observation-seed-description.json'
 DESCRIPTION_LOG = ROOT / 'observation-seed-description-private.log'
 SEED = ROOT / 'public-seed.archipelago'
 IMAGE_ID = 'sha256:1b9104acd36cb98950aee35e08c12a70ea3efa78b6a55b90ebaaa1d76ce6fc03'
-CANDIDATE_COMMIT = '9a6d2dfd762e12198c3a0a391293becc1d77a04d'
+CANDIDATE_COMMIT = '7a9a047afd6c38e9bcce4b98053ee43296f9386b'
 ARTIFACT_SHA = '7ad3410e15d73d73698e2edb3ff153899d7da2438cbc24e19717a09e0bb7414b'
 LOADER_SHA = 'd5afd585c3b4571275b8dad4696d4d7e0d64665eee7650a7ef7a8eda6e46285d'
 ENGINE_INVENTORY_SHA = 'ea87c2f934bb559c64deeb76cf61253fdbb0d12b975de02929e18d97d508f54f'
 WORLD_PROFILE_SHA = 'cb3653610aa43b893508a9f014e6a420ca6aea73e344a0738ee6722806bd2a4a'
 HINTS_SHA = '68e714887bfe7a867a74bc9a73d759f2b4c2e67a2e67dd0a784fa43b75dd01cc'
 CANDIDATE_PINS = {
-    'profile.v1.json': '46e6c62968a98e58bccddfda7f3aa18a01c43b9559c9eea429eae448be00794f',
-    'native_yacht_observations.py': '37b64f6da7afbd2ea1519b986ed844d6885d2304df17d1c22092c9e2f71ec250',
+    'profile.v1.json': '366892cbf8af3df3550179d707c8616bafa2a00ce814fb747edfd4f43fb093b9',
+    'native_yacht_observations.py': '529b7afbd61758e8b9c28c52c72eec87dcc5c75efac101dbbaee7129bce4d3bc',
     'native_yacht_effects.py': 'a6630c05b97c4971251a66c8108da732dc301587101b44782b75566b2631cdf2',
 }
 SHA = re.compile(r'^[a-f0-9]{64}$')
 UUID = re.compile(r'^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$')
 STAGE = 'preflight'
+DIAGNOSTIC_SOURCES = {}
+DIAGNOSTIC_EXCEPTION_TYPES = frozenset(('AssertionError', 'AttributeError', 'BarrierError', 'FileExistsError',
+    'FileNotFoundError', 'ImportError', 'IndexError', 'KeyError', 'MemoryError', 'ModuleNotFoundError',
+    'NativeFilesError', 'OSError', 'OverflowError', 'PermissionError', 'RecursionError', 'Refused',
+    'RuntimeError', 'SyntaxError', 'TypeError', 'UnicodeDecodeError', 'ValueError'))
 PRODUCT_QUALIFICATION = {'cpRosterAuthority': False, 'currentWebsiteAuthorization': False,
                          'browserGameplay': False, 'imageQualified': False, 'productionAdmitted': False}
 
@@ -76,6 +82,44 @@ def strict_json(raw):
         return out
     return json.loads(raw.decode('utf-8', errors='strict'), object_pairs_hook=pairs,
                       parse_constant=lambda _: (_ for _ in ()).throw(Refused('input_nonfinite')))
+
+
+def register_diagnostic_source(filename, raw, label):
+    """Only captured/verified code metadata; never exception values or text."""
+    need(type(raw) is bytes and 0 < len(raw) <= 1048576 and type(label) is str and
+         re.fullmatch(r'(?:acceptance|foundation|candidate|engine)/[A-Za-z0-9_./-]{1,128}', label) and
+         all(part not in ('', '.', '..') for part in label.split('/')), 'diagnostic_source')
+    tree = ast.parse(raw, filename=str(filename))
+    names = {'<module>'}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Lambda): names.add('<lambda>')
+        elif isinstance(node, ast.GeneratorExp): names.add('<genexpr>')
+        elif isinstance(node, ast.ListComp): names.add('<listcomp>')
+        elif isinstance(node, ast.SetComp): names.add('<setcomp>')
+        elif isinstance(node, ast.DictComp): names.add('<dictcomp>')
+    record = (label, frozenset(names), len(raw.splitlines()), sha(raw))
+    need(str(filename) not in DIAGNOSTIC_SOURCES or DIAGNOSTIC_SOURCES[str(filename)] == record, 'diagnostic_source_changed')
+    DIAGNOSTIC_SOURCES[str(filename)] = record
+
+
+def safe_exception_diagnostic(error):
+    """Bounded metadata only. No formatting/access of exception data or locals."""
+    name = type(error).__name__
+    result = {'exceptionType': name if name in DIAGNOSTIC_EXCEPTION_TYPES else 'UnclassifiedException', 'frames': []}
+    trace, count = error.__traceback__, 0
+    while trace is not None and count < 256:
+        count += 1
+        code = trace.tb_frame.f_code
+        source = DIAGNOSTIC_SOURCES.get(code.co_filename)
+        if source is not None:
+            label, names, lines, _ = source
+            if code.co_name in names and 1 <= trace.tb_lineno <= lines:
+                result['frames'].append({'file': label, 'function': code.co_name, 'line': trace.tb_lineno})
+                result['frames'] = result['frames'][-16:]
+        trace = trace.tb_next
+    return result
 
 
 def read_fixed(file, maximum, *, private=False, empty=False):
@@ -153,6 +197,7 @@ def capture_inputs(*, describe=False):
          Path('/.dockerenv').is_file() and sys.flags.isolated == 1 and sys.dont_write_bytecode,
          'isolated_exact_native_image_required')
     need(os.environ.get('AMZ_NATIVE_OBSERVATION_ACCEPTANCE') == 'private-owned-genuine-context-only', 'explicit_acceptance_required')
+    register_diagnostic_source(__file__, read_fixed(Path(__file__), 262144, private=True), 'acceptance/qualify_native_context.py')
     need(os.statvfs(ENGINE).f_flag & os.ST_RDONLY and os.statvfs(OWNED).f_flag & os.ST_RDONLY, 'readonly_sources_required')
     for name in ('public-gateway-native.lock', 'public-gateway-journal.json', 'public-runtime.json', 'public-runtime-status.json',
                  'public-seed.apsave', 'public-yacht-observation-control.json', 'public-yacht-observation-ack.json', RESULT.name, LOG.name):
@@ -167,6 +212,7 @@ def capture_inputs(*, describe=False):
     need(sha(seed) == (manifest['seedSha256'] if describe else manifest['run']['seedArtifactSha256']), 'seed_pin')
     loader_raw = read_fixed(OWNED / 'loader.py', 262144)
     need(sha(loader_raw) == LOADER_SHA, 'loader_pin')
+    register_diagnostic_source(OWNED / 'loader.py', loader_raw, 'foundation/loader.py')
     # This verified source module imports only the standard library and starts
     # nothing. Engine imports happen only after the full verification below.
     loader = load_module('observation_acceptance_loader', loader_raw, OWNED / 'loader.py')
@@ -176,17 +222,27 @@ def capture_inputs(*, describe=False):
     for row in artifact['ownedFiles']:
         raw = read_fixed(OWNED / row['path'], 262144)
         need(len(raw) == row['bytes'] and sha(raw) == row['sha256'], 'foundation_source_pin'); code[row['path']] = raw
+        if row['path'].endswith('.py'):
+            register_diagnostic_source(OWNED / row['path'], raw, 'foundation/' + row['path'])
     inventory_raw = read_fixed(OWNED / 'engine-manifest.json', 2097152)
     need(sha(inventory_raw) == ENGINE_INVENTORY_SHA, 'engine_inventory_pin')
     inventory = strict_json(inventory_raw)
     need(inventory['engineCommit'] == '54803be064fc7e80c4628777ed0b46a9390f255f' and len(inventory['files']) == 3539, 'engine_inventory')
     STAGE = 'full_engine_verification'; loader.verify_inventory(ENGINE, inventory)
+    for name in ('MultiServer.py', 'NetUtils.py', 'Utils.py', 'apmw/multiserver/gamespackagecache.py'):
+        raw = read_fixed(ENGINE / name, 1048576)
+        row, = (row for row in inventory['files'] if row['path'] == name)
+        checked = raw.replace(b'\r\n', b'\n') if row['algorithm'] == 'sha256-lf' else raw
+        need(sha(checked) == row['sha256'], 'diagnostic_engine_source_pin')
+        register_diagnostic_source(ENGINE / name, raw, 'engine/' + name)
     hints_raw = read_fixed(OWNED / 'world-hints.v1.json', 65536)
     need(sha(hints_raw) == HINTS_SHA, 'hints_pin')
     candidate = {}
     for name, pin in CANDIDATE_PINS.items():
         raw = read_fixed(CANDIDATE / name, 262144, private=True)
         need(sha(raw) == pin, 'candidate_source_pin'); candidate[name] = raw
+        if name.endswith('.py'):
+            register_diagnostic_source(CANDIDATE / name, raw, 'candidate/' + name)
     profile = strict_json(candidate['profile.v1.json'])
     need(profile['sourceOnly'] is True and all(enabled is False for enabled in profile['qualification'].values()), 'candidate_not_release')
     for row in profile['foundationFiles']:
@@ -279,21 +335,28 @@ async def exercise(captured):
         # starting a listener, accepting a client or running command packets.
         state = loader.bind_native(MultiServer, configuration, hints, barrier, hooks_module,
                                    lambda ctx: checkpoint.NativeSnapshots(owner, ctx))
-        STAGE = 'genuine_native_seed_load'
+        STAGE = 'native_context_construct'
         context = MultiServer.Context('0.0.0.0', configuration['port'], '', master, 1, 10, False,
                                       release_mode='disabled', collect_mode='disabled', remaining_mode='disabled', log_network=False)
+        STAGE = 'native_context_load'
         context.load(str(SEED), use_embedded_server_options=False)
+        STAGE = 'native_context_init_save'
         context.init_save(True)
+        STAGE = 'native_context_empty_checks'
         need(state['context'] is context and context.server is None and context.endpoints == [] and context.auto_saver_thread is None,
              'unintended_native_listener_or_thread')
+        STAGE = 'native_barrier_initial_ready'
         barrier.mark_ready()  # Proven empty genuine Context, not serving-runtime qualification.
+        STAGE = 'native_observation_abi'
         abi = producer.VerifiedYachtObservationABI(MultiServer, native_source)
         def new_control(**changes):
             options = dict(run=run, roster=roster, scope=scope, build_id=manifest['browserBuildSha256'], seed_bytes=seed,
                            independent_key=observation_key)
             options.update(changes)
             return producer.YachtObservationControl(owner, barrier, abi, context, **options)
+        STAGE = 'native_observation_construct'
         control = new_control()
+        STAGE = 'native_observation_initial_snapshots'
         before = {row['slot']: control.snapshot(row['actorUuid']) for row in roster}
         need(all(value['itemStream']['startInventoryCount'] >= 1 for value in before.values()), 'real_start_inventory_required')
         need(all(value['locationIds'] == sorted(context.locations[value['binding']['slot']]) and
@@ -409,6 +472,7 @@ def main():
 
 if __name__ == '__main__':
     try: main()
-    except BaseException:
-        print(json.dumps({'schema': SCHEMA, 'state': 'failed', 'stage': STAGE, 'code': 'native_observation_acceptance_refused'}), file=sys.stderr)
+    except BaseException as error:
+        print(json.dumps({'schema': SCHEMA, 'state': 'failed', 'stage': STAGE, 'code': 'native_observation_acceptance_refused',
+                          'diagnostic': safe_exception_diagnostic(error)}), file=sys.stderr)
         raise SystemExit(1)
