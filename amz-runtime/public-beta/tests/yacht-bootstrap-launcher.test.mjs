@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {generateKeyPairSync,sign,randomUUID} from 'node:crypto';
 import {readFileSync} from 'node:fs';
-import {spawn} from 'node:child_process';
+import {spawn,spawnSync} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {PROFILE_SHA,CHANNEL,DOMAIN,sha,canonical,parseCanonical,publicTrust,verifySeal,encodeFrame,frameDecoder} from '../../public-beta-yacht-bootstrap/runtime/launcher.mjs';
+import {PROFILE_SHA,CHANNEL,DOMAIN,sha,canonical,parseCanonical,publicTrust,verifySeal,encodeFrame,frameDecoder,
+  WORKER_FAILURE_SCHEMA,workerFailureDecoder,redactedRuntimeFailure} from '../../public-beta-yacht-bootstrap/runtime/launcher.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const profile=JSON.parse(readFileSync(path.join(here,'../../public-beta-yacht-bootstrap/runtime/runtime-profile.json')));
@@ -47,10 +48,38 @@ test('private frame decoder has bounded partial reads, exact EOF and finite fram
  const large=Buffer.alloc(4);large.writeUInt32BE(32769);assert.throws(()=>frameDecoder(()=>{})(large));
  const many=frameDecoder(()=>{});for(let i=0;i<3;i++)many(frame);assert.throws(()=>many(frame));
 });
+test('worker diagnostic accepts only the exact final static marker across arbitrary chunk splits',()=>{
+ const stages=['capture_inputs','challenge','seal_verify','snapshot','handoff','native_inputs','native_init','native_loop','cleanup'];
+ for(const stage of stages){const raw=Buffer.from(canonical({schema:WORKER_FAILURE_SCHEMA,stage,code:'bootstrap_refused'})+'\n');
+  for(let at=0;at<=raw.length;at++){const p=workerFailureDecoder();p.push(raw.subarray(0,at));p.push(raw.subarray(at));assert.equal(p.finish(),stage);assert.equal(p.finish(),stage);}
+ }
+ const p=workerFailureDecoder();p.push(Buffer.from(canonical({schema:WORKER_FAILURE_SCHEMA,stage:'snapshot',code:'bootstrap_refused'})));assert.equal(p.finish(),'unknown');
+});
+test('mixed logs malformed bytes overflow and forged diagnostic fields stay drain-only',()=>{
+ const secret='PRIVATE_KEY_fixture_password_token_/private/secret-path';
+ const marker=Buffer.from(canonical({schema:WORKER_FAILURE_SCHEMA,stage:'native_init',code:'bootstrap_refused'})+'\n');
+ const wrongs=[Buffer.concat([Buffer.from(secret+'\n'),marker]),Buffer.concat([marker,Buffer.from(secret)]),Buffer.concat([marker,marker]),Buffer.concat([Buffer.from([0xef,0xbb,0xbf]),marker]),Buffer.from([0xff]),Buffer.alloc(257,65),
+  Buffer.from(canonical({schema:WORKER_FAILURE_SCHEMA,stage:secret,code:'bootstrap_refused'})+'\n'),Buffer.from(canonical({schema:WORKER_FAILURE_SCHEMA,stage:'snapshot',code:secret})+'\n'),Buffer.from(canonical({schema:WORKER_FAILURE_SCHEMA,stage:'snapshot',code:'bootstrap_refused',message:secret})+'\n'),Buffer.from('{"schema":"'+WORKER_FAILURE_SCHEMA+'","stage":"challenge","stage":"snapshot","code":"bootstrap_refused"}\n')];
+ for(const raw of wrongs){const p=workerFailureDecoder();for(let at=0;at<raw.length;at+=3)p.push(raw.subarray(at,at+3));const stage=p.finish();assert.equal(stage,'unknown');const output=canonical(redactedRuntimeFailure('native_init',stage,1));assert(!output.includes(secret));assert(!output.includes('secret-path'));}
+ const p=workerFailureDecoder();p.push(Buffer.alloc(256,65));p.push(Buffer.from('x'));p.push(marker);assert.equal(p.finish(),'unknown');
+});
+test('runtime diagnostic cannot forward caller objects exception fields or unbounded exit values',()=>{
+ const secret='fixture-secret-private-path';const bad={toString(){throw Error(secret);}};
+ for(const exit of [-1,256,Infinity,1.5,'1',bad,null]){const r=redactedRuntimeFailure(bad,bad,exit);assert.deepEqual(r,{schema:'amz.ap.public-beta.bootstrap-runtime-failure.v1',code:'bootstrap_refused',stage:'unknown',workerStage:'unknown',workerExitCode:null});assert(Object.isFrozen(r));assert(!canonical(r).includes(secret));}
+ assert.equal(redactedRuntimeFailure('native_init','snapshot',255).workerExitCode,255);
+ for(const stage of ['capture_inputs','spawn','challenge','seal_verify','native_init','native_loop','cleanup','unknown'])for(const worker of ['capture_inputs','challenge','seal_verify','snapshot','handoff','native_inputs','native_init','native_loop','cleanup','unknown'])assert(Buffer.byteLength(canonical(redactedRuntimeFailure(stage,worker,255))+'\n')<=256);
+});
+test('actual early Node refusal emits one closed redacted record without private filesystem IO',()=>{
+ const entry=path.join(here,'../../public-beta-yacht-bootstrap/runtime/launcher.mjs');
+ const result=spawnSync(process.execPath,[entry],{env:process.platform==='win32'?{SystemRoot:process.env.SystemRoot}:{},timeout:3000,maxBuffer:4096,windowsHide:true});
+ assert.equal(result.error,undefined);assert.equal(result.status,1);assert.equal(result.stdout.length,0);
+ const expected=redactedRuntimeFailure('capture_inputs','unknown',null);assert.equal(result.stderr.toString(),canonical(expected)+'\n');
+});
 test('normal entrypoint code retains fixed worker, original parent bound and strict frame kinds',()=>{
  const source=readFileSync(path.join(here,'../../public-beta-yacht-bootstrap/runtime/launcher.mjs'),'utf8');
  assert(source.includes("frame.kind==='challenge'"));assert(source.includes("frame.kind==='verify-seal'"));assert(source.includes("reply(-1,'startup-bound'"));assert(source.includes('startedWall+30000'));
  assert(source.includes("'/usr/local/bin/python',['-I','-B',OWNED+'/bootstrap.py']"));assert(!source.includes('createServer'));assert(!source.includes('process.env'));assert(source.includes('await settle()'));
+ assert(source.includes('output>2097152'));assert(source.includes('child.stdout.on(\'data\',drain)'));assert(!source.includes('process.stderr.write(chunk'));assert(!source.includes('process.stderr.write(raw'));
 });
 test('real private pipes reach Python actual channel only after actual Node signature verification',{skip:process.platform!=='linux'},async()=>{
  const python=process.env.AMZ_BOOTSTRAP_TEST_PYTHON;assert(python&&path.isAbsolute(python),'Python wrapper must supply its actual executable, never an alias');

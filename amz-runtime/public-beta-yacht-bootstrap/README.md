@@ -84,6 +84,31 @@ verification uses Node `crypto.verify` over the exact domain and canonical body.
 Native stdout/stderr are drained with a 2-MiB ceiling and never exported or
 claimed to be regex-redacted. Bootstrap pipes close before engine import.
 
+Failure diagnostics are a separate, closed metadata channel on existing stderr;
+there is no fourth IPC frame, extra pipe or workspace log. The worker's final
+catch emits one canonical JSON line with schema
+`amz.ap.public-beta.bootstrap-worker-failure.v1`, code `bootstrap_refused`, and
+only a static phase: `capture_inputs`, `challenge`, `seal_verify`, `snapshot`,
+`handoff`, `native_inputs`, `native_init`, `native_loop` or `cleanup`. It never
+reads or prints an exception, traceback, native value, path, identifier or key.
+An earlier failure phase survives successful local cleanup; a failed cleanup
+reports `cleanup`. Phases describe the last instrumented boundary, not an
+exception location or proof of the earliest internal native cause.
+
+Node retains at most256 candidate stderr bytes and accepts only the **entire**
+stream as that exact single canonical line. Mixed native logs, extra fields,
+duplicates, malformed UTF-8, multiple lines, unknown phases or overflow remain
+drain-only and give `workerStage:"unknown"`. It never forwards child bytes.
+On failure Node emits exactly one final canonical line with schema
+`amz.ap.public-beta.bootstrap-runtime-failure.v1`, fixed code `bootstrap_refused`,
+its own static `stage`, the worker enum or `unknown`, and `workerExitCode`
+(integer0–255 or null). Own stages are `capture_inputs`, `spawn`, `challenge`,
+`seal_verify`, `native_init`, `native_loop`, `cleanup` or `unknown`. This record
+is at most256 bytes. A missing/unknown child close has no invented exit code.
+It is diagnostic data only: it grants no admission or resource-release authority.
+Production logs should consume only this strict projection, never retain or
+publish arbitrary child text as if it had passed redaction.
+
 ## Fresh challenge and fixed files
 
 Only empty fixed `.amz` and `.amz-bootstrap` directories may enter waiting. Missing

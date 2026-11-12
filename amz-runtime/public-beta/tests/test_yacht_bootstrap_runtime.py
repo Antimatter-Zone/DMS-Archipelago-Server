@@ -41,6 +41,7 @@ class BootstrapSourceTests(unittest.TestCase):
         for value in ({}, object.__new__(worker.SealedSnapshot)):
             with patch.object(worker, 'compile', side_effect=AssertionError('no native execution'), create=True):
                 with self.assertRaises(RuntimeError): worker.run_native_loader(value)
+                self.assertEqual(worker._DIAGNOSTIC_STAGE, 'native_inputs')
         with self.assertRaises(RuntimeError): worker.SealedSnapshot()
         with self.assertRaises(RuntimeError): worker.VerifiedSeal()
         self.assertEqual(list(inspect.signature(worker.run_native_loader).parameters), ['snapshot'])
@@ -113,6 +114,29 @@ class BootstrapSourceTests(unittest.TestCase):
                                 capture_output=True, env=environment, timeout=25)
         self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace') + result.stdout.decode(errors='replace'))
         self.assertLessEqual(len(result.stdout) + len(result.stderr), 65536)
+
+    def test_worker_failure_marker_has_static_only_fields_and_no_exception_input(self):
+        self.assertEqual(list(inspect.signature(worker.failure_marker).parameters), [])
+        previous = worker._DIAGNOSTIC_STAGE
+        try:
+            for stage in worker.FAILURE_STAGES:
+                worker.diagnostic_stage(stage)
+                raw = worker.failure_marker()
+                self.assertLessEqual(len(raw), 256)
+                self.assertEqual(raw, worker.canonical({'schema': worker.FAILURE_SCHEMA,
+                    'stage': stage, 'code': 'bootstrap_refused'}) + b'\n')
+            for value in ('/private/fixture-key', object(), ['native_init'], None):
+                with self.assertRaises(RuntimeError): worker.diagnostic_stage(value)
+            self.assertEqual(worker._DIAGNOSTIC_STAGE, stage)
+        finally: worker.diagnostic_stage(previous)
+
+    def test_actual_early_worker_refusal_emits_only_static_phase_without_engine_or_keys(self):
+        result = subprocess.run([sys.executable, '-I', '-B', str(SOURCE)], capture_output=True,
+                                env={'SystemRoot': 'C:\\Windows'} if sys.platform == 'win32' else {}, timeout=3)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, b'')
+        self.assertEqual(result.stderr, worker.canonical({'schema': worker.FAILURE_SCHEMA,
+                         'stage': 'capture_inputs', 'code': 'bootstrap_refused'}) + b'\n')
 
 
 @unittest.skipUnless(sys.platform == 'linux', 'Real owned Linux FD/fsync cases, no Windows or provider simulation')

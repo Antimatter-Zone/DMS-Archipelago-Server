@@ -34,6 +34,22 @@ BOOT_CAPS = {'challenge.json': 4096, '.challenge.json.pending': 4096,
              'consumed.json': 4096, '.consumed.json.pending': 4096}
 _APPROVALS = weakref.WeakKeyDictionary()
 _SNAPSHOTS = weakref.WeakKeyDictionary()
+FAILURE_SCHEMA = 'amz.ap.public-beta.bootstrap-worker-failure.v1'
+FAILURE_STAGES = frozenset(('capture_inputs', 'challenge', 'seal_verify', 'snapshot', 'handoff',
+                            'native_inputs', 'native_init', 'native_loop', 'cleanup'))
+_DIAGNOSTIC_STAGE = 'capture_inputs'
+
+
+def diagnostic_stage(value):
+    global _DIAGNOSTIC_STAGE
+    need(type(value) is str and value in FAILURE_STAGES)
+    _DIAGNOSTIC_STAGE = value
+
+
+def failure_marker():
+    # Never inspect an exception, traceback, argument, path or native value.
+    stage = _DIAGNOSTIC_STAGE if type(_DIAGNOSTIC_STAGE) is str and _DIAGNOSTIC_STAGE in FAILURE_STAGES else 'capture_inputs'
+    return canonical({'schema': FAILURE_SCHEMA, 'stage': stage, 'code': 'bootstrap_refused'}) + b'\n'
 
 
 def need(value):
@@ -433,6 +449,7 @@ def close_snapshot(snapshot):
 
 def run_native_loader(snapshot):
     """Capture the real loader internally; no caller module/callback is admitted."""
+    diagnostic_stage('native_inputs')
     state = snapshot_state(snapshot); admitted = approval(state['proof'], state['channel'])
     native_code = dict(state['code'])
     need(admitted['consumed'] and sha(native_code['loader.py']) == NATIVE_LOADER_SHA)
@@ -443,6 +460,7 @@ def run_native_loader(snapshot):
     attached = {'guard': None, 'initialized': False, 'journalSha256': None, 'composition': None}
 
     def verify_inputs(base):
+        diagnostic_stage('native_inputs')
         snapshot_current(snapshot)
         result = original_verify(base)  # ACTUAL original FD reads and validation.
         snapshot_current(snapshot)
@@ -474,6 +492,7 @@ def run_native_loader(snapshot):
                          type(guard.files) is genuine['modules']['native_files'].NativeFiles)
                     original_initialize = guard.files.initialize
                     def initialize(value):
+                        diagnostic_stage('native_init')
                         with guard.transaction():
                             need(not attached['initialized']); snapshot_current(snapshot)
                             pub = genuine['modules']['publication']; lock = genuine['lock']
@@ -502,6 +521,7 @@ def run_native_loader(snapshot):
         except BaseException:
             # Use the genuine coordinator's existing held/close semantics.
             with guard.transaction(): raise
+        diagnostic_stage('native_loop')
     parent.verify_inputs, parent.captured_module, parent.install_control_guards = verify_inputs, captured_module, install_controls
     return parent.main()
 
@@ -538,6 +558,7 @@ def captured_inputs():
 
 
 def main():
+    diagnostic_stage('capture_inputs')
     startup = Budget(30000)
     need(sys.platform == 'linux' and os.getuid() == 65532 and os.getgid() == 65532 and os.getppid() == 1 and
          sys.version_info[:2] == (3, 12) and os.statvfs('/').f_flag & os.ST_RDONLY)
@@ -546,6 +567,7 @@ def main():
     native_fd = boot_fd = snapshot = channel = None
     metadata_fds = []
     try:
+        diagnostic_stage('challenge')
         native_fd = root(NATIVE, create=True); boot_fd = root(BOOT, create=True)
         need(os.listdir(native_fd) == [] and os.listdir(boot_fd) == [])
         now = startup.current(); info = os.fstat(native_fd)
@@ -568,6 +590,7 @@ def main():
             boot_root_current(boot_fd)
         metadata_current('challenge.json', challenge_fd, challenge_identity, challenge_raw, 4096)
         channel = PrivateChannel(challenge, startup, signer_sha); channel.register()
+        diagnostic_stage('seal_verify')
         while True:
             audit_boot(boot_fd, startup)
             anchor = (time.monotonic_ns(), time.time_ns() // 1000000)
@@ -580,7 +603,9 @@ def main():
             proof = channel.verify(raw, short)
             metadata_current('seal.json', seal_fd, seal_identity, raw, 16384)
             metadata_current('challenge.json', challenge_fd, challenge_identity, challenge_raw, 4096)
+            diagnostic_stage('snapshot')
             snapshot = capture_snapshot(proof, channel, code)
+            diagnostic_stage('handoff')
             audit_boot(boot_fd, short, sealed=True)
             publish_metadata(boot_fd, 'consumed.json', canonical({'schema': 'amz.ap.public-beta.bootstrap-consumed.v1',
                 'nonce': challenge['nonce'], 'sealSha256': sha(raw), 'state': 'handoff-intent',
@@ -596,6 +621,8 @@ def main():
         run_native_loader(snapshot)
         return 0
     finally:
+        failed_stage = _DIAGNOSTIC_STAGE if sys.exc_info()[0] is not None else None
+        diagnostic_stage('cleanup')
         closers = []
         if snapshot is not None and snapshot in _SNAPSHOTS and not _SNAPSHOTS[snapshot]['closed']:
             closers.append(lambda: close_snapshot(snapshot))
@@ -610,9 +637,14 @@ def main():
             except BaseException as error:
                 if first is None: first = error
         if first is not None: raise first
+        if failed_stage is not None: diagnostic_stage(failed_stage)
 
 
 if __name__ == '__main__':
     try: result = main()
-    except BaseException: result = 1
+    except BaseException:
+        result = 1
+        try:
+            sys.stderr.buffer.write(failure_marker()); sys.stderr.buffer.flush()
+        except BaseException: pass
     raise SystemExit(result)

@@ -52,6 +52,29 @@ export function frameDecoder(deliver){
   }
  };accept.finish=()=>need(pending.length===0);return accept;
 }
+export const WORKER_FAILURE_SCHEMA='amz.ap.public-beta.bootstrap-worker-failure.v1';
+const WORKER_STAGES=Object.freeze(['capture_inputs','challenge','seal_verify','snapshot','handoff','native_inputs','native_init','native_loop','cleanup']);
+const NODE_STAGES=Object.freeze(['capture_inputs','spawn','challenge','seal_verify','native_init','native_loop','cleanup']);
+/** Diagnostic data only. Any mixed/arbitrary stderr becomes unknown; no bytes
+ * or parsed fields escape except the closed static stage enum. */
+export function workerFailureDecoder(){
+ let raw=Buffer.alloc(0),invalid=false,done=false,result='unknown';
+ return Object.freeze({push(chunk){
+  if(done||invalid)return;
+  if(!Buffer.isBuffer(chunk)||raw.length+chunk.length>256){invalid=true;raw.fill(0);raw=Buffer.alloc(0);return;}
+  const previous=raw;raw=Buffer.concat([previous,chunk]);previous.fill(0);
+ },finish(){
+  if(done)return result;done=true;
+  try{if(invalid||raw.length===0)return result;const text=new TextDecoder('utf-8',{fatal:true}).decode(raw),v=JSON.parse(text);
+   if(Buffer.from(text).equals(raw)&&canonical(v)+'\n'===text&&exact(v,['schema','stage','code'])&&v.schema===WORKER_FAILURE_SCHEMA&&v.code==='bootstrap_refused'&&WORKER_STAGES.includes(v.stage))result=v.stage;
+  }catch{}finally{raw.fill(0);raw=Buffer.alloc(0);}return result;
+ }});
+}
+export function redactedRuntimeFailure(stage,workerStage,exitCode){
+ return Object.freeze({schema:'amz.ap.public-beta.bootstrap-runtime-failure.v1',code:'bootstrap_refused',
+  stage:NODE_STAGES.includes(stage)?stage:'unknown',workerStage:WORKER_STAGES.includes(workerStage)?workerStage:'unknown',
+  workerExitCode:Number.isInteger(exitCode)&&exitCode>=0&&exitCode<=255?exitCode:null});
+}
 async function regular(file,maximum){
  const named=await lstat(file,{bigint:true});need(named.isFile()&&!named.isSymbolicLink()&&named.nlink===1n&&named.uid===0n&&named.gid===0n&&(named.mode&0o022n)===0n&&named.size>0n&&named.size<=BigInt(maximum));
  const fd=await open(file,constants.O_RDONLY|constants.O_NOFOLLOW|constants.O_NONBLOCK);
@@ -75,6 +98,7 @@ async function inputs(){
 }
 export async function main(){
  const began=process.hrtime.bigint(),startedWall=Date.now(),deadline=began+30000000000n;let wallFloor=startedWall,initialized=false,stopping=false,failed=false,child,bootTimer,killTimer,challenge,verified,sequence=0,closed=false,closedCode=null;
+ const diagnostic=workerFailureDecoder();let diagnosticStage='capture_inputs',outcome=1;
  const current=()=>{const wall=Date.now();need(!stopping&&wall>=wallFloor&&(initialized||process.hrtime.bigint()<deadline));wallFloor=wall;return wall;};
  const stop=()=>{stopping=true;if(child&&child.exitCode===null&&child.signalCode===null){child.kill('SIGTERM');killTimer??=setTimeout(()=>{failed=true;child.kill('SIGKILL');},15000);}};
  const settle=async()=>{if(!child||closed)return;stop();const end=process.hrtime.bigint()+17000000000n;while(!closed&&process.hrtime.bigint()<end)await new Promise(resolve=>setTimeout(resolve,10));if(!closed){failed=true;child.kill('SIGKILL');for(const stream of child.stdio)stream?.destroy();child.unref();throw Error('bootstrap_worker_close_unknown');}};
@@ -82,17 +106,19 @@ export async function main(){
  try{
   need(process.platform==='linux'&&process.getuid()===65532&&process.getgid()===65532&&process.pid===1&&process.version==='v24.20.0');
   const admitted=await inputs();current();
+  diagnosticStage='spawn';
   child=spawn('/usr/local/bin/python',['-I','-B',OWNED+'/bootstrap.py'],{shell:false,cwd:'/home/container',env:{PATH:'/usr/local/bin:/usr/bin:/bin',LANG:'C.UTF-8',TZ:'UTC',PYTHONDONTWRITEBYTECODE:'1'},stdio:['ignore','pipe','pipe','pipe','pipe']});
+  diagnosticStage='challenge';
   child.once('close',code=>{closed=true;closedCode=code;});child.on('error',()=>{failed=true;stop();});
   bootTimer=setTimeout(()=>{if(!initialized){failed=true;stop();}},Math.max(1,Number((deadline-process.hrtime.bigint())/1000000n)));
   let output=0;const drain=chunk=>{output+=chunk.length;if(output>2097152){failed=true;stop();}};
-  child.stdout.on('data',drain);child.stderr.on('data',drain);
+  child.stdout.on('data',drain);child.stderr.on('data',chunk=>{drain(chunk);diagnostic.push(chunk);});
   const reply=(seq,kind,body)=>{current();need(!child.stdio[4].destroyed&&child.stdio[4].writableLength<65536);child.stdio[4].write(encodeFrame({schema:CHANNEL,direction:'parent-to-worker',sequence:seq,kind,body}));current();};
   const decode=frameDecoder(frame=>{
    try{current();need(exact(frame,['schema','direction','sequence','kind','body'])&&frame.schema===CHANNEL&&frame.direction==='worker-to-parent'&&frame.sequence===sequence++);
-    if(frame.sequence===0){need(frame.kind==='challenge');challenge=frame.body;need(exact(challenge,['schema','nonce','process','bootstrapArtifactSha256','profileSha256','nativeRoot','issuedAt','expiresAt'])&&challenge.schema==='amz.ap.public-beta.bootstrap-challenge.v1'&&typeof challenge.nonce==='string'&&SHA.test(challenge.nonce)&&challenge.profileSha256===PROFILE_SHA&&challenge.bootstrapArtifactSha256===admitted.artifactSha256&&exact(challenge.process,['pid1StartTicks','workerStartTicks','workerPid'])&&decimal(challenge.process.pid1StartTicks)&&decimal(challenge.process.workerStartTicks)&&challenge.process.workerPid===child.pid&&instant(challenge.issuedAt)&&instant(challenge.expiresAt)&&Date.parse(challenge.issuedAt)<=Date.now()&&Date.now()<Date.parse(challenge.expiresAt)&&Date.parse(challenge.expiresAt)<=startedWall+30000&&Date.parse(challenge.expiresAt)-Date.parse(challenge.issuedAt)<=30000);reply(0,'challenge-accepted',{nonce:challenge.nonce,challengeSha256:sha(Buffer.from(canonical(challenge)))});
-    }else if(frame.sequence===1){need(frame.kind==='verify-seal');const b=frame.body;need(challenge&&exact(b,['requestId','nonce','sealBase64'])&&typeof b.requestId==='string'&&UUID.test(b.requestId)&&b.nonce===challenge.nonce&&typeof b.sealBase64==='string');const raw=Buffer.from(b.sealBase64,'base64');need(raw.toString('base64')===b.sealBase64);verified=verifySeal(raw,{...admitted,challenge},current());current();reply(1,'seal-verified',{requestId:b.requestId,nonce:challenge.nonce,sealSha256:verified.sealSha256,bodySha256:verified.bodySha256,signerSpkiSha256:admitted.trust.rootSpkiSha256});
-    }else{need(frame.sequence===2&&frame.kind==='initialized'&&verified&&exact(frame.body,['nonce','sealSha256','firstJournalSha256'])&&frame.body.nonce===challenge.nonce&&frame.body.sealSha256===verified.sealSha256&&typeof frame.body.firstJournalSha256==='string'&&SHA.test(frame.body.firstJournalSha256));current();reply(2,'initialized-accepted',{nonce:challenge.nonce,sealSha256:verified.sealSha256});initialized=true;clearTimeout(bootTimer);child.stdio[4].end();}
+    if(frame.sequence===0){need(frame.kind==='challenge');challenge=frame.body;need(exact(challenge,['schema','nonce','process','bootstrapArtifactSha256','profileSha256','nativeRoot','issuedAt','expiresAt'])&&challenge.schema==='amz.ap.public-beta.bootstrap-challenge.v1'&&typeof challenge.nonce==='string'&&SHA.test(challenge.nonce)&&challenge.profileSha256===PROFILE_SHA&&challenge.bootstrapArtifactSha256===admitted.artifactSha256&&exact(challenge.process,['pid1StartTicks','workerStartTicks','workerPid'])&&decimal(challenge.process.pid1StartTicks)&&decimal(challenge.process.workerStartTicks)&&challenge.process.workerPid===child.pid&&instant(challenge.issuedAt)&&instant(challenge.expiresAt)&&Date.parse(challenge.issuedAt)<=Date.now()&&Date.now()<Date.parse(challenge.expiresAt)&&Date.parse(challenge.expiresAt)<=startedWall+30000&&Date.parse(challenge.expiresAt)-Date.parse(challenge.issuedAt)<=30000);reply(0,'challenge-accepted',{nonce:challenge.nonce,challengeSha256:sha(Buffer.from(canonical(challenge)))});diagnosticStage='seal_verify';
+    }else if(frame.sequence===1){need(frame.kind==='verify-seal');const b=frame.body;need(challenge&&exact(b,['requestId','nonce','sealBase64'])&&typeof b.requestId==='string'&&UUID.test(b.requestId)&&b.nonce===challenge.nonce&&typeof b.sealBase64==='string');const raw=Buffer.from(b.sealBase64,'base64');need(raw.toString('base64')===b.sealBase64);verified=verifySeal(raw,{...admitted,challenge},current());current();reply(1,'seal-verified',{requestId:b.requestId,nonce:challenge.nonce,sealSha256:verified.sealSha256,bodySha256:verified.bodySha256,signerSpkiSha256:admitted.trust.rootSpkiSha256});diagnosticStage='native_init';
+    }else{need(frame.sequence===2&&frame.kind==='initialized'&&verified&&exact(frame.body,['nonce','sealSha256','firstJournalSha256'])&&frame.body.nonce===challenge.nonce&&frame.body.sealSha256===verified.sealSha256&&typeof frame.body.firstJournalSha256==='string'&&SHA.test(frame.body.firstJournalSha256));current();reply(2,'initialized-accepted',{nonce:challenge.nonce,sealSha256:verified.sealSha256});initialized=true;diagnosticStage='native_loop';clearTimeout(bootTimer);child.stdio[4].end();}
    }catch{failed=true;stop();}
   });
   child.stdio[3].on('data',chunk=>{try{decode(chunk);}catch{failed=true;stop();}});
@@ -100,7 +126,10 @@ export async function main(){
   child.stdio[3].on('error',()=>{failed=true;stop();});child.stdio[4].on('error',()=>{if(!initialized){failed=true;stop();}});
   reply(-1,'startup-bound',{issuedAt:new Date(startedWall).toISOString(),expiresAt:new Date(startedWall+30000).toISOString()});
   while(!closed){if(!initialized){try{current();}catch{failed=true;stop();}}await new Promise(resolve=>setTimeout(resolve,10));if(stopping)await settle();}
-  return !failed&&initialized&&closedCode===0?0:1;
- }catch{failed=true;try{await settle();}catch{process.exitCode=1;}return 1;}finally{clearTimeout(bootTimer);clearTimeout(killTimer);process.removeListener('SIGTERM',stop);process.removeListener('SIGINT',stop);}
+  outcome=!failed&&initialized&&closedCode===0?0:1;return outcome;
+ }catch{failed=true;try{await settle();}catch{diagnosticStage='cleanup';process.exitCode=1;}return 1;}finally{
+  clearTimeout(bootTimer);clearTimeout(killTimer);process.removeListener('SIGTERM',stop);process.removeListener('SIGINT',stop);
+  const workerStage=diagnostic.finish();if(outcome!==0)try{process.stderr.write(canonical(redactedRuntimeFailure(diagnosticStage,workerStage,closedCode))+'\n');}catch{}
+ }
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))void main().then(code=>{process.exitCode=code;}).catch(()=>{process.exitCode=1;});
