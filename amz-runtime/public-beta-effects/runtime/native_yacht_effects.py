@@ -7,9 +7,9 @@ import copy
 import enum
 import hashlib
 import hmac
-import marshal
 import math
 import os
+import struct
 import threading
 import time
 import types
@@ -94,6 +94,33 @@ def _code(container, name):
     return result[0]
 
 
+def _code_identity(code, budget=None, depth=0):
+    """Executable identity, excluding marshal's reference/intern bookkeeping."""
+    if budget is None: budget = [0]
+    budget[0] += 1
+    require(type(code) is types.CodeType and depth <= 64 and budget[0] <= 100000, 'yacht_effects_handler_abi')
+    fields = ('co_argcount', 'co_posonlyargcount', 'co_kwonlyargcount', 'co_nlocals', 'co_stacksize', 'co_flags',
+              'co_code', 'co_names', 'co_varnames', 'co_filename', 'co_name', 'co_qualname', 'co_firstlineno',
+              'co_linetable', 'co_exceptiontable', 'co_freevars', 'co_cellvars')
+    return ('code', tuple(getattr(code, name) for name in fields),
+            tuple(_constant_identity(value, budget, depth + 1) for value in code.co_consts))
+
+
+def _constant_identity(value, budget, depth):
+    budget[0] += 1
+    require(depth <= 64 and budget[0] <= 100000, 'yacht_effects_handler_abi')
+    kind = type(value)
+    if value is None: return ('none',)
+    if value is Ellipsis: return ('ellipsis',)
+    if kind in (str, bytes, int, bool): return (kind.__name__, value)
+    if kind is float: return ('float', struct.pack('!d', value))
+    if kind is complex: return ('complex', struct.pack('!d', value.real), struct.pack('!d', value.imag))
+    if kind is types.CodeType: return _code_identity(value, budget, depth + 1)
+    if kind is tuple: return ('tuple', tuple(_constant_identity(v, budget, depth + 1) for v in value))
+    if kind is frozenset: return ('frozenset', frozenset(_constant_identity(v, budget, depth + 1) for v in value))
+    require(False, 'yacht_effects_handler_abi')
+
+
 class VerifiedYachtHandlers:
     """Exact pinned normal functions, not request-selected callback enrollment.
 
@@ -123,7 +150,7 @@ class VerifiedYachtHandlers:
         functions = {name: getattr(self.module, name, None) for name in ('register_location_checks', 'update_client_status')}
         functions['on_goal_achieved'] = getattr(getattr(self.module, 'Context', None), 'on_goal_achieved', None)
         require(all(type(fn) is types.FunctionType and fn.__globals__ is self.module.__dict__ and
-                    marshal.dumps(fn.__code__) == marshal.dumps(self.expected[name])
+                    _code_identity(fn.__code__) == _code_identity(self.expected[name])
                     for name, fn in functions.items()), 'yacht_effects_handler_abi')
 
     def check_context(self, context, run, roster):

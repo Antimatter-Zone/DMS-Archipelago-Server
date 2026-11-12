@@ -7,6 +7,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+import struct
 import tempfile
 import threading
 import types
@@ -315,6 +316,42 @@ class Candidate(unittest.TestCase):
         f.module.register_location_checks = lambda *args: None
         with self.assertRaisesRegex(BarrierError, 'handler_abi'): f.control.process(delivery(f))
         self.assertNotIn(effects.ACK, f.records)
+
+    def test_code_identity_accepts_equal_distinct_constant_objects_without_weakening_fields(self):
+        f = self.f
+        code = f.module.register_location_checks.__code__
+        replacements = tuple((' ' + value)[1:] if type(value) is str else value for value in code.co_consts)
+        self.assertTrue(any(type(old) is str and old is not new for old, new in zip(code.co_consts, replacements)))
+        f.module.register_location_checks.__code__ = code.replace(co_consts=replacements)
+        self.assertEqual(effects._code_identity(code), effects._code_identity(f.module.register_location_checks.__code__))
+        f.control.process(delivery(f))
+
+    def test_code_identity_refuses_changed_opcode_constants_metadata_and_exception_table(self):
+        f = self.f
+        code = f.module.register_location_checks.__code__
+        changes = [code.replace(co_consts=tuple('foreign' if type(v) is str else v for v in code.co_consts)),
+                   code.replace(co_code=bytes([9, 0]) + code.co_code[2:]),
+                   code.replace(co_filename='/foreign/MultiServer.py'),code.replace(co_name='foreign'),
+                   code.replace(co_qualname='foreign'),code.replace(co_firstlineno=code.co_firstlineno + 1),
+                   code.replace(co_linetable=code.co_linetable + b'\x00'),code.replace(co_exceptiontable=b'\x00'),
+                   code.replace(co_flags=code.co_flags ^ 0x40),code.replace(co_stacksize=code.co_stacksize + 1)]
+        for changed in changes:
+            f.module.register_location_checks.__code__ = changed
+            with self.assertRaisesRegex(BarrierError, 'handler_abi'): f.handlers.check_code()
+        f.module.register_location_checks.__code__ = code
+        f.handlers.check_code()
+
+    def test_code_identity_recurses_nested_code_and_distinguishes_typed_constants(self):
+        raw = compile('def outer():\n def inner():\n  return 7\n return inner\n', effects.ENGINE_FILE, 'exec')
+        outer = effects._code(raw, 'outer'); inner = effects._code(outer, 'inner')
+        changed = outer.replace(co_consts=tuple(inner.replace(co_consts=(None, 8)) if v is inner else v for v in outer.co_consts))
+        self.assertNotEqual(effects._code_identity(outer), effects._code_identity(changed))
+        with self.assertRaises(BarrierError): effects._code_identity(outer.replace(co_consts=(object(),)))
+        self.assertNotEqual(effects._constant_identity(True, [0], 0), effects._constant_identity(1, [0], 0))
+        self.assertNotEqual(effects._constant_identity(0.0, [0], 0), effects._constant_identity(-0.0, [0], 0))
+        nan1 = struct.unpack('!d', bytes.fromhex('7ff8000000000001'))[0]
+        nan2 = struct.unpack('!d', bytes.fromhex('7ff8000000000002'))[0]
+        self.assertNotEqual(effects._constant_identity(nan1, [0], 0), effects._constant_identity(nan2, [0], 0))
 
     def test_wrong_seed_context_and_reused_master_key_refuse_enrollment(self):
         f = self.f; f.context.seed_name = 'foreign'

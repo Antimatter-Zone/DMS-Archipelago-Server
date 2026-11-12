@@ -16,6 +16,10 @@ MultiServer548 module with captured LF source SHA
 The helper compiles source without executing it and compares exact function code
 for `register_location_checks`, `update_client_status` and
 `Context.on_goal_achieved`. Arbitrary callback/name selection is unavailable.
+Comparison covers exact bytecode, argument/local/closure/stack/flag fields,
+typed recursive constants and nested code, filename/name/qualname/first line,
+line table and exception table. It does not compare marshal serialization:
+marshal reference/intern bookkeeping can differ for equivalent code in Python3.12.
 Native status accepts only the exact enrolled `MultiServer.ClientStatus` type
 shared with the verified `NetUtils` module (the pinned five-value IntEnum), or
 plain integers with those same five values. Booleans, foreign enums and arbitrary

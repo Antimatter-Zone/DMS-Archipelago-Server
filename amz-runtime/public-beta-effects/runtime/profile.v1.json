@@ -8,7 +8,7 @@
   "multiServerLfSha256": "e157abab8a56351d58f1cf5a84c6c2a9144d295956d6be08cbd5811c7a2932de",
   "netUtilsLfSha256": "0c4acb2e0a434bcd91ed03d6e9c66f5d119597b3feb300620241f206bd7f0b06",
   "module": "native_yacht_effects.py",
-  "moduleSha256": "ade3c60c6c0ccb52841441ccfe244115fbbad5e4ab94a44e0d5f6b4a28f4ac70",
+  "moduleSha256": "a6630c05b97c4971251a66c8108da732dc301587101b44782b75566b2631cdf2",
   "controlSchema": "amz.ap.public-beta.yacht-effects-control.v1",
   "committedEffectsSchema": "amz.ap.public-beta.yacht-committed-effects.v1",
   "journalSchema": "amz.ap.public-beta.yacht-effects-journal.v1",
