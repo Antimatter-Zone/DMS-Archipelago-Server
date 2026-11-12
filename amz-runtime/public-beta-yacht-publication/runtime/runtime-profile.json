@@ -1,0 +1,94 @@
+{
+  "schema": "amz.ap.public-beta.yacht-publication-runtime-profile.v1",
+  "profileId": "public-yacht-publication-fresh-v1",
+  "policyId": "public-disposable-beta-v1",
+  "composition": "server-headless-public-yacht-publication-v1",
+  "imageRepository": "docker.darkmatterservers.com/dms-public-beta/ap-runtime-public-beta",
+  "engineCommit": "54803be064fc7e80c4628777ed0b46a9390f255f",
+  "engineInventorySha256": "ea87c2f934bb559c64deeb76cf61253fdbb0d12b975de02929e18d97d508f54f",
+  "compatibleWorldPackSha256": "cb3653610aa43b893508a9f014e6a420ca6aea73e344a0738ee6722806bd2a4a",
+  "packetPolicy": {
+    "schema": "amz.ap.public-beta.yacht-read-only-packets.v1",
+    "sha256": "c6259c26b4cb7b23c7f2b2405f9198e2c13e98f235ba1f854891e1cd20fcd263",
+    "commands": [
+      "Connect",
+      "ConnectUpdate",
+      "Sync",
+      "GetDataPackage"
+    ],
+    "itemsHandling": 7,
+    "tags": [
+      "AP"
+    ],
+    "maximumBytes": 262144,
+    "maximumPackets": 32
+  },
+  "modules": {
+    "effectsSha256": "a6630c05b97c4971251a66c8108da732dc301587101b44782b75566b2631cdf2",
+    "observationSha256": "a6dbe041e2ac40fc78eeffc8f33ffff00366ff3a30e72a0b14a65a288f8a00d2"
+  },
+  "paths": {
+    "configuration": "/home/container/.amz/public-runtime.json",
+    "keys": "/home/container/.amz/public-yacht-keys.json",
+    "seed": "/home/container/.amz/public-seed.archipelago",
+    "effectsJournal": "/home/container/.amz/public-yacht-effects-journal.json",
+    "observationControl": "/home/container/.amz/public-yacht-observation-control.json",
+    "observationAck": "/home/container/.amz/public-yacht-observation-ack.json",
+    "effectsControl": "/home/container/.amz/public-yacht-effects-control.json",
+    "effectsAck": "/home/container/.amz/public-yacht-effects-ack.json"
+  },
+  "journalMode": "initialize",
+  "qualification": {
+    "sourceOnly": true,
+    "imageBuilt": false,
+    "nativeAcceptance": false,
+    "gameplay": false,
+    "restore": false,
+    "custodyMigration": false,
+    "productionRegistered": false,
+    "nativeQuotaAdmission": false,
+    "encryptedCustody": false,
+    "atomicPublication": false,
+    "publicationTransport": false,
+    "scopeEnrollment": false,
+    "activation": false
+  },
+  "nativeBudget": {
+    "schema": "amz.ap.public-beta.native-plaintext-budget.v1",
+    "sourceSha256": "b648e1d11ed9d97ea7c6267b23199b3725b19c7a6d780ffc08802288ebc14e2f",
+    "aggregateBytes": 3145728,
+    "metadataReserveBytes": 262144,
+    "finalSaveHeadroomBytes": 524288,
+    "externalCurrentAndPendingReserveBytes": 393216,
+    "seedBytes": 524288,
+    "nativeSaveBytes": 524288,
+    "gatewayJournalBytes": 524288,
+    "effectsJournalBytes": 524288,
+    "observationAckBytes": 524288,
+    "controlOrSmallAckBytes": 65536,
+    "statusBytes": 16384,
+    "configurationBytes": 16384,
+    "keysBytes": 4096,
+    "ownerLockBytes": 1024,
+    "scratchRoot": "/tmp/amz-yacht-runtime",
+    "scratchMaximumBytes": 67108864,
+    "physicalStoragePermit": false,
+    "encryptedCapsuleQualified": false
+  },
+  "publication": {
+    "schema": "amz.ap.public-beta.publication-scope.v1",
+    "scopePath": "/home/container/.amz/public-publication-scope.json",
+    "lockPath": "/home/container/.amz/public-control-publication.lock",
+    "scopeSha256Source": "protected-runtime-configuration",
+    "publisherSourceSha256": "f7cf95840762e7e28194b5a589014ceb88fbe95cde05b6b1737aadc8f0be2ce2",
+    "compositionSourceSha256": "9883a419994438fe60c0e561b250480c60de2a1ee1aa932989c97b67e2565124",
+    "scopeBytes": 16384,
+    "lockBytes": 2048,
+    "operationMaximumMilliseconds": 5000,
+    "sharedLock": "exclusive-flock-native-rlock-first",
+    "issuerEnrolled": false,
+    "principalEnrolled": false,
+    "providerEnrolled": false,
+    "physicalPermit": false
+  }
+}
