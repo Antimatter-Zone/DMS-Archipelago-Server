@@ -37,3 +37,5 @@ test('Public launcher has fixed verified paths, no secret argv/environment and n
   assert(!/process\.env|fetch\(|exec\(|current\.json'|\/opt\/amz-ap\//.test(source));
   assert(source.indexOf('const artifact=validateArtifact')<source.indexOf("const child=spawn("));assert(source.indexOf('public_owned_source_changed')<source.indexOf("const child=spawn("));
 });
+
+import './yacht-first-start.test.mjs';
